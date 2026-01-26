@@ -1,3 +1,5 @@
+CREATE DATABASE "MORCHID-HUB-OFFICIEL";
+
 -- Activation de l'extension pour la géolocalisation
 CREATE EXTENSION IF NOT EXISTS postgis;
 
