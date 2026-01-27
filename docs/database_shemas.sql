@@ -44,3 +44,10 @@ CREATE TABLE reservations (
     date_reservation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     statut VARCHAR(20) DEFAULT 'en_attente'
 );
+
+
+
+ALTER TABLE guides 
+ADD COLUMN carte_photo_url TEXT,
+ADD COLUMN statut_verification VARCHAR(20) DEFAULT 'en_attente'; 
+-- Statuts possibles : 'en_attente', 'valide', 'rejete'
