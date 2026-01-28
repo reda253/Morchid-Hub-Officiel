@@ -63,4 +63,12 @@ ADD COLUMN years_experience INTEGER;
 
 ALTER TABLE users 
 ADD COLUMN phone_number VARCHAR(20),
-ADD COLUMN birth_year INTEGER;
+ADD COLUMN birth_year INTEGER,
+ADD COLUMN is_email_verified BOOLEAN DEFAULT FALSE,
+ADD COLUMN verification_token VARCHAR(255),
+ADD COLUMN reset_password_token VARCHAR(255),
+ADD COLUMN token_expiry TIMESTAMP;
+
+
+
+
