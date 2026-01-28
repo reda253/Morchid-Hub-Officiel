@@ -5,24 +5,34 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 1. Table des Utilisateurs
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY, -- Correspond au UUID String du code Python
+    full_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role VARCHAR(20) CHECK (role IN ('touriste', 'guide')),
-    full_name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    phone VARCHAR(20) NOT NULL,
+    date_of_birth VARCHAR(10) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL, -- 'tourist' ou 'guide'
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- 2. Table des Guides (Reliée à Users)
+-- 2. Table des Guides
 CREATE TABLE guides (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    licence_number VARCHAR(50) UNIQUE NOT NULL,
-    is_verified BOOLEAN DEFAULT FALSE, -- Validé via le scan NFC de la CINE
-    specialite VARCHAR(100), -- Ex: Montagne, Ville, Désert
-    eco_score INTEGER DEFAULT 0, -- Calculé par votre algorithme
-    bio TEXT,
-    current_location GEOGRAPHY(POINT, 4326) -- Position GPS pour la recherche
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    languages TEXT[] NOT NULL, -- Correspond au ARRAY(String) de SQLAlchemy
+    specialties TEXT[] NOT NULL,
+    cities_covered TEXT[] NOT NULL,
+    years_of_experience INTEGER DEFAULT 0,
+    bio TEXT NOT NULL,
+    is_verified BOOLEAN DEFAULT FALSE,
+    eco_score INTEGER DEFAULT 0,
+    has_official_license BOOLEAN DEFAULT FALSE,
+    license_number VARCHAR(50),
+    approval_status VARCHAR(20) DEFAULT 'pending_approval',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE
 );
 
 -- 3. Table des Trajets (Éco-responsables)
@@ -47,27 +57,7 @@ CREATE TABLE reservations (
 
 
 
-ALTER TABLE guides 
-ADD COLUMN carte_photo_url TEXT,
-ADD COLUMN statut_verification VARCHAR(20) DEFAULT 'en_attente'; 
--- Statuts possibles : 'en_attente', 'valide', 'rejete'
 
-
--- Mise à jour de la table guides avec les nouveaux champs du formulaire
-ALTER TABLE guides 
-ADD COLUMN phone_number VARCHAR(20),
-ADD COLUMN birth_year INTEGER,
-ADD COLUMN languages TEXT,         -- Stocké sous forme de texte (ex: "Français, Anglais")
-ADD COLUMN cities_covered TEXT,    -- Les villes où le guide travaille
-ADD COLUMN years_experience INTEGER;
-
-ALTER TABLE users 
-ADD COLUMN phone_number VARCHAR(20),
-ADD COLUMN birth_year INTEGER,
-ADD COLUMN is_email_verified BOOLEAN DEFAULT FALSE,
-ADD COLUMN verification_token VARCHAR(255),
-ADD COLUMN reset_password_token VARCHAR(255),
-ADD COLUMN token_expiry TIMESTAMP;
 
 
 
