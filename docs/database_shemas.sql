@@ -51,3 +51,16 @@ ALTER TABLE guides
 ADD COLUMN carte_photo_url TEXT,
 ADD COLUMN statut_verification VARCHAR(20) DEFAULT 'en_attente'; 
 -- Statuts possibles : 'en_attente', 'valide', 'rejete'
+
+
+-- Mise à jour de la table guides avec les nouveaux champs du formulaire
+ALTER TABLE guides 
+ADD COLUMN phone_number VARCHAR(20),
+ADD COLUMN birth_year INTEGER,
+ADD COLUMN languages TEXT,         -- Stocké sous forme de texte (ex: "Français, Anglais")
+ADD COLUMN cities_covered TEXT,    -- Les villes où le guide travaille
+ADD COLUMN years_experience INTEGER;
+
+ALTER TABLE users 
+ADD COLUMN phone_number VARCHAR(20),
+ADD COLUMN birth_year INTEGER;
