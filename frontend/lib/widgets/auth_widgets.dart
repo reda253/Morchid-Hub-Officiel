@@ -457,6 +457,156 @@ class TextLink extends StatelessWidget {
 }
 
 // ============================================
+// 🏷️ MULTI-SELECT CHIPS (Pour les spécialités)
+// ============================================
+class SpecialtiesSelector extends StatefulWidget {
+  final List<String> selectedSpecialties;
+  final Function(List<String>) onChanged;
+  final String? Function(List<String>?)? validator;
+
+  const SpecialtiesSelector({
+    Key? key,
+    required this.selectedSpecialties,
+    required this.onChanged,
+    this.validator,
+  }) : super(key: key);
+
+  @override
+  State<SpecialtiesSelector> createState() => _SpecialtiesSelectorState();
+}
+class _SpecialtiesSelectorState extends State<SpecialtiesSelector> {
+  final List<Map<String, dynamic>> _specialties = [
+    {'name': 'Nature', 'icon': Icons.landscape, 'value': 'nature'},
+    {'name': 'Culture', 'icon': Icons.museum, 'value': 'culture'},
+    {'name': 'Aventure', 'icon': Icons.hiking, 'value': 'adventure'},
+    {'name': 'Gastronomie', 'icon': Icons.restaurant, 'value': 'gastronomy'},
+    {'name': 'Histoire', 'icon': Icons.history_edu, 'value': 'history'},
+  ];
+
+  void _toggleSpecialty(String value) {
+    setState(() {
+      if (widget.selectedSpecialties.contains(value)) {
+        widget.selectedSpecialties.remove(value);
+      } else {
+        widget.selectedSpecialties.add(value);
+      }
+      widget.onChanged(widget.selectedSpecialties);
+    });
+  }
+   @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Spécialités',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textDark,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _specialties.map((specialty) {
+            final isSelected = widget.selectedSpecialties.contains(specialty['value']);
+            return GestureDetector(
+              onTap: () => _toggleSpecialty(specialty['value']),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.textLight.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      specialty['icon'],
+                      size: 18,
+                      color: isSelected ? Colors.white : AppColors.textDark,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      specialty['name'],
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : AppColors.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        if (widget.validator != null)
+          Builder(
+            builder: (context) {
+              final error = widget.validator!(widget.selectedSpecialties);
+              if (error != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 4),
+                  child: Text(
+                    error,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.error,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+      ],
+    );
+  }
+}
+// ============================================
+// 🌍 LANGUAGES INPUT (Champ pour les langues)
+// ============================================
+class LanguagesInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String? Function(String?)? validator;
+
+  const LanguagesInput({
+    Key? key,
+    required this.controller,
+    this.validator,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomTextField(
+      controller: controller,
+      label: 'Langues parlées',
+      hint: 'Ex: Arabe, Français, Anglais...',
+      prefixIcon: Icons.language,
+      validator: validator,
+    );
+  }
+}
+
+// ============================================
 // 🎭 AUTH HEADER (En-tête avec logo et titre)
 // ============================================
 class AuthHeader extends StatelessWidget {
