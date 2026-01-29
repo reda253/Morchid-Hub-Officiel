@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/auth_widgets.dart';
+import '../services/api_service.dart';
+import '../models/user_models.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -9,31 +11,35 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderStateMixin{
+class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderStateMixin {
   // ============================================
   // 📝 CONTROLLERS & FORM KEY
   // ============================================
   final _formKey = GlobalKey<FormState>();
+  
+  // Champs communs (tous les utilisateurs)
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _birthYearController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
-   // Champs spécifiques aux guides
+  
+  // Champs spécifiques aux guides
   final _languagesController = TextEditingController();
   final _citiesController = TextEditingController();
   final _experienceController = TextEditingController();
   final _bioController = TextEditingController();
   final List<String> _selectedSpecialties = [];
+  
   String? _selectedRole;
   bool _isLoading = false;
   bool _acceptTerms = false;
-
+  
   // Animation pour l'apparition des champs guides
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +70,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   }
 
   // ============================================
-  // ✅ VALIDATION
+  // ✅ VALIDATION - CHAMPS COMMUNS
   // ============================================
   String? _validateFullName(String? value) {
     if (value == null || value.isEmpty) {
@@ -86,38 +92,43 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     }
     return null;
   }
+
   String? _validatePhone(String? value) {
-  if (value == null || value.isEmpty) return 'Veuillez entrer votre numéro';
-  
-  // REGEX : +212 6XX XX XX XX ou 06XX XX XX XX
-  final phoneRegex = RegExp(r'^\+212\s?[5-7]\d{8}$|^0[5-7]\d{8}$');
-  if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
-    return 'Format invalide (ex: 0612345678)';
+    if (value == null || value.isEmpty) {
+      return 'Veuillez entrer votre numéro de téléphone';
+    }
+    // Validation pour format marocain: +212 6XX XX XX XX
+    final phoneRegex = RegExp(r'^\+212\s?[5-7]\d{8}$|^0[5-7]\d{8}$');
+    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
+      return 'Format: +212 6XX XX XX XX ou 06XX XX XX XX';
+    }
+    return null;
   }
-  return null;
-}
+
   String? _validateBirthYear(String? value) {
-  if (value == null || value.isEmpty) return 'Année requise';
-  final year = int.tryParse(value);
-  final currentYear = DateTime.now().year;
-  
-  // Vérification de l'âge (18 ans min)
-  if (year == null || year < 1924 || year > currentYear - 18) {
-    return 'Vous devez avoir au moins 18 ans';
+    if (value == null || value.isEmpty) {
+      return 'Veuillez entrer votre année de naissance';
+    }
+    final year = int.tryParse(value);
+    if (year == null) {
+      return 'Année invalide';
+    }
+    final currentYear = DateTime.now().year;
+    if (year < 1924 || year > currentYear - 18) {
+      return 'Vous devez avoir au moins 18 ans';
+    }
+    return null;
   }
-  return null;
-}
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Veuillez entrer un mot de passe';
     }
     if (value.length < 6) {
-      return 'Le mot de passe doit contenir au moins 6 caractères';
+      return 'Au moins 6 caractères';
     }
-    // Vérifier qu'il contient au moins une lettre et un chiffre
     if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(value)) {
-      return 'Le mot de passe doit contenir des lettres et des chiffres';
+      return 'Doit contenir des lettres et des chiffres';
     }
     return null;
   }
@@ -138,7 +149,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     }
     return null;
   }
-    // ============================================
+
+  // ============================================
   // ✅ VALIDATION - CHAMPS GUIDES
   // ============================================
   String? _validateLanguages(String? value) {
@@ -178,29 +190,31 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   }
 
   String? _validateBio(String? value) {
-  if (_selectedRole != 'guide') return null;
-  if (value == null || value.isEmpty) return 'La biographie est requise';
-  
-  // Minimum 50 caractères
-  if (value.length < 50) {
-    return 'La biographie doit contenir au moins 50 caractères';
+    if (_selectedRole != 'guide') return null;
+    if (value == null || value.isEmpty) {
+      return 'Veuillez rédiger une courte biographie';
+    }
+    if (value.length < 50) {
+      return 'La biographie doit contenir au moins 50 caractères';
+    }
+    return null;
   }
-  return null;
-}
 
   // ============================================
   // 🚀 SUBMIT SIGNUP
   // ============================================
- Future<void> _handleSignup() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  // Validation des spécialités pour les guides
-  if (_selectedRole == 'guide' && _selectedSpecialties.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sélectionnez au moins une spécialité')),
-    );
-    return;
-  }
+  Future<void> _handleSignup() async {
+    // Valider le formulaire
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Veuillez remplir tous les champs obligatoires'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     // Vérifier la validation des spécialités pour les guides
     if (_selectedRole == 'guide' && _selectedSpecialties.isEmpty) {
@@ -230,77 +244,89 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     setState(() {
       _isLoading = true;
     });
-    // Préparer les données à envoyer
-    final Map<String, dynamic> userData = {
-      'personal_info': {
-        'full_name': _fullNameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'date_of_birth': '${_birthYearController.text}-01-01',
-      },
-      'role': _selectedRole,
-      'password': _passwordController.text,
-    };
 
-    // Ajouter les champs spécifiques aux guides
-    if (_selectedRole == 'guide') {
-      userData['guide_details'] = {
-        'languages': _languagesController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList(),
-        'specialties': _selectedSpecialties,
-        'cities_covered': _citiesController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList(),
-        'years_of_experience': int.parse(_experienceController.text),
-        'bio': _bioController.text.trim(),
-      };
-    }
-
-    // TODO: Appeler l'API d'inscription ici
-    // Exemple:
-    // final userData = {
-    //   'full_name': _fullNameController.text,
-    //   'email': _emailController.text,
-    //   'password': _passwordController.text,
-    //   'role': _selectedRole,
-    // };
-    // await AuthService.register(userData);
-    
-    // Simulation d'un délai réseau (À RETIRER EN PRODUCTION)
-    await Future.delayed(const Duration(seconds: 2));
-    // Debug: Afficher les données collectées
-    print('=== DONNÉES D\'INSCRIPTION ===');
-    print(userData);
-
-    // Cacher l'indicateur de chargement
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Afficher un message de succès
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _selectedRole == 'guide'
-                ? '✅ Inscription réussie ! Vérifiez votre email pour activer votre compte.'
-                : '✅ Bienvenue sur Morchid Hub !',
-          ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
+    try {
+      // ============================================
+      // PRÉPARER LES DONNÉES
+      // ============================================
+      final personalInfo = PersonalInfo(
+        fullName: _fullNameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        dateOfBirth: "${_birthYearController.text.trim()}-01-01",
       );
 
-      // Retourner à l'écran de login après 1 seconde
-      await Future.delayed(const Duration(seconds: 1));
+      GuideDetails? guideDetails;
+      if (_selectedRole == 'guide') {
+        guideDetails = GuideDetails(
+          languages: _languagesController.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+          specialties: _selectedSpecialties,
+          citiesCovered: _citiesController.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+          yearsOfExperience: int.tryParse(_experienceController.text) ?? 0,
+          bio: _bioController.text.trim(),
+        );
+      }
+
+      final registrationData = UserRegistrationRequest(
+        personalInfo: personalInfo,
+        role: _selectedRole!,
+        password: _passwordController.text,
+        guideDetails: guideDetails,
+      );
+
+      // ============================================
+      // APPEL API D'INSCRIPTION
+      // ============================================
+      final response = await ApiService.register(
+        registrationData: registrationData,
+      );
+
+      // Cacher l'indicateur de chargement
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Afficher un message de succès
       if (mounted) {
-        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ${response.message}'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Retourner à l'écran de login après 1 seconde
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      // Cacher l'indicateur de chargement
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Afficher l'erreur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -312,7 +338,6 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      // Bouton retour personnalisé
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -333,7 +358,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ============================================
-                // 🎭 HEADER (Logo + Titre)
+                // 🎭 HEADER
                 // ============================================
                 const AuthHeader(
                   title: 'Créer un compte',
@@ -368,7 +393,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 ),
                 
                 const SizedBox(height: 20),
-
+                
                 // ============================================
                 // 📱 CHAMP TÉLÉPHONE (NOUVEAU)
                 // ============================================
@@ -398,23 +423,23 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 const SizedBox(height: 20),
                 
                 // ============================================
-                // 🔽 DROPDOWN RÔLE (Touriste ou Guide)
+                // 🔽 DROPDOWN RÔLE
                 // ============================================
                 RoleDropdown(
-                    selectedRole: _selectedRole,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRole = value;
-                        // LOGIQUE D'ANIMATION ICI
-                        if (value == 'guide') {
-                          _animationController.forward(); // Affiche les champs avec animation
-                        } else {
-                          _animationController.reverse(); // Cache les champs
-                        }
-                      });
-                    },
-                    validator: _validateRole,
-                  ),
+                  selectedRole: _selectedRole,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRole = value;
+                      // Animer l'apparition des champs guides
+                      if (value == 'guide') {
+                        _animationController.forward();
+                      } else {
+                        _animationController.reverse();
+                      }
+                    });
+                  },
+                  validator: _validateRole,
+                ),
                 
                 // ============================================
                 // 🎯 CHAMPS DYNAMIQUES POUR LES GUIDES
@@ -539,7 +564,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 const SizedBox(height: 20),
                 
                 // ============================================
-                // 🔒 CHAMP CONFIRMATION MOT DE PASSE
+                // 🔒 CHAMP CONFIRMATION
                 // ============================================
                 CustomTextField(
                   controller: _confirmPasswordController,
@@ -553,7 +578,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 const SizedBox(height: 24),
                 
                 // ============================================
-                // ✅ CHECKBOX CONDITIONS D'UTILISATION
+                // ✅ CHECKBOX CONDITIONS
                 // ============================================
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,7 +655,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 const SizedBox(height: 30),
                 
                 // ============================================
-                // 🔀 DIVIDER "OU"
+                // 🔀 DIVIDER
                 // ============================================
                 Row(
                   children: [
@@ -669,9 +694,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   child: TextLink(
                     normalText: 'Vous avez déjà un compte ? ',
                     linkText: 'Se connecter',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: () => Navigator.pop(context),
                   ),
                 ),
                 

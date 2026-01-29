@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/auth_widgets.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -63,32 +64,62 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // TODO: Appeler l'API de connexion ici
-    // Exemple: await AuthService.login(email, password);
-    
-    // Simulation d'un délai réseau (À RETIRER EN PRODUCTION)
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Cacher l'indicateur de chargement
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Afficher un message de succès
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Connexion réussie !'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
+    try {
+      // ============================================
+      // APPEL API DE CONNEXION
+      // ============================================
+      final response = await ApiService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
 
-      // TODO: Naviguer vers l'écran principal
-      // Navigator.pushReplacementNamed(context, '/home');
+      // Cacher l'indicateur de chargement
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Afficher un message de succès
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Bienvenue ${response.user.fullName} !'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // TODO: Naviguer vers l'écran principal selon le rôle
+        // if (response.user.role == 'guide') {
+        //   Navigator.pushReplacementNamed(context, '/guide_home');
+        // } else {
+        //   Navigator.pushReplacementNamed(context, '/tourist_home');
+        // }
+        
+        // Pour l'instant, juste un print
+        print('✅ Connexion réussie: ${response.user.email}');
+        print('🔑 Token: ${response.accessToken.substring(0, 20)}...');
+      }
+    } catch (e) {
+      // Cacher l'indicateur de chargement
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Afficher l'erreur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
+
 
   // ============================================
   // 🎨 BUILD UI

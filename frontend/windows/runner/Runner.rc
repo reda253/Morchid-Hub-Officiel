@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "projetmorchid" "\0"
+            VALUE "FileDescription", "morchid_hub" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "projetmorchid" "\0"
+            VALUE "InternalName", "morchid_hub" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "projetmorchid.exe" "\0"
-            VALUE "ProductName", "projetmorchid" "\0"
+            VALUE "OriginalFilename", "morchid_hub.exe" "\0"
+            VALUE "ProductName", "morchid_hub" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

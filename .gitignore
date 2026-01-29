@@ -1,0 +1,26 @@
+# --- Frontend (Flutter) ---
+frontend/.dart_tool/
+frontend/build/
+frontend/windows/flutter/ephemeral/
+frontend/linux/flutter/ephemeral/
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/.packages
+frontend/pubspec.lock  # Optionnel (certains préfèrent le garder)
+frontend/.idea/
+frontend/*.iml
+
+# --- Backend (FastAPI/Python) ---
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/.pytest_cache/
+
+# --- Système & IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
