@@ -26,6 +26,7 @@ class ApiService {
   // Endpoints
   static const String registerEndpoint = '/api/v1/register';
   static const String loginEndpoint = '/api/v1/login';
+  static const String profileEndpoint = '/api/v1/auth/me';
   static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
   static const String verifyEmailEndpoint = '/api/v1/auth/verify-email';
@@ -214,6 +215,44 @@ class ApiService {
     print('✅ Déconnexion réussie');
   }
 
+
+ // ============================================
+  // 👤 PROFIL UTILISATEUR
+  // ============================================
+
+  /// Récupère le profil complet de l'utilisateur connecté
+  static Future<UserProfileResponse> getUserProfile() async {
+    try {
+      print('📤 Récupération du profil utilisateur');
+
+      final response = await authenticatedGet(profileEndpoint);
+
+      print('📥 Réponse reçue: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return UserProfileResponse.fromJson(responseData);
+      } else if (response.statusCode == 401) {
+        // Token invalide, déconnecter l'utilisateur
+        await logout();
+        throw ApiError(
+          errorCode: 'UNAUTHORIZED',
+          message: 'Session expirée. Veuillez vous reconnecter.',
+        );
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw ApiError.fromJson(errorData);
+      }
+    } catch (e) {
+      if (e is ApiError) rethrow;
+      throw ApiError(
+        errorCode: 'PROFILE_ERROR',
+        message: 'Erreur lors de la récupération du profil: ${e.toString()}',
+      );
+    }
+  }
+
+  
   // ============================================
   // 🔒 REQUÊTES AUTHENTIFIÉES (Pour plus tard)
   // ============================================

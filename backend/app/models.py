@@ -33,6 +33,12 @@ class User(Base):
     date_of_birth = Column(String(255), nullable=True)
     password_hash = Column(String(255), nullable=True)
     role = Column(String(20), nullable=True ) # 'tourist' ou 'guide'
+
+    # Sécurité et vérification
+    is_email_verified = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String(255), nullable=True, index=True)
+    reset_password_token = Column(String(255), nullable=True, index=True)
+    token_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Métadonnées
     is_active = Column(Boolean, default=True, nullable=False)

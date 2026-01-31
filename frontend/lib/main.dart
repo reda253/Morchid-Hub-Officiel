@@ -3,6 +3,7 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/email_verification_screen.dart';
+import 'screens/home_screen.dart';
 
 
 void main() {
@@ -28,37 +29,32 @@ class MorchidHubApp extends StatelessWidget {
       // Routes de navigation
       initialRoute: '/login',
       onGenerateRoute: (settings) {
-        switch (settings.name) {
-          case '/login':
-            return MaterialPageRoute(
-              builder: (_) => const LoginScreen(),
-            );
-          
-          case '/signup':
-            return MaterialPageRoute(
-              builder: (_) => const SignupScreen(),
-            );
-          
-          case '/forgot-password':
-            return MaterialPageRoute(
-              builder: (_) => const ForgotPasswordScreen(),
-            );
-          
-          case '/email-verification':
-            final args = settings.arguments as Map<String, String>;
-            return MaterialPageRoute(
-              builder: (_) => EmailVerificationScreen(
-                email: args['email']!,
-                fullName: args['fullName']!,
-              ),
-            );
-          
-          default:
-            return MaterialPageRoute(
-              builder: (_) => const LoginScreen(),
-            );
-        }
-      },
+  switch (settings.name) {
+    case '/login':
+      return MaterialPageRoute(builder: (_) => const LoginScreen());
+    
+    case '/signup':
+      return MaterialPageRoute(builder: (_) => const SignupScreen());
+    
+    case '/forgot-password':
+      return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
+    
+    case '/email-verification':
+      final args = settings.arguments as Map<String, String>;
+      return MaterialPageRoute(
+        builder: (_) => EmailVerificationScreen(
+          email: args['email']!,
+          fullName: args['fullName']!,
+        ),
+      );
+    
+    case '/home':
+      return MaterialPageRoute(builder: (_) => const HomeScreen());
+    
+    default:
+      return MaterialPageRoute(builder: (_) => const LoginScreen());
+  }
+},
     );
   }
 }

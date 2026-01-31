@@ -19,9 +19,25 @@ from .schemas import (
     TokenResponse,
     UserResponse,
     GuideResponse,
-    ErrorResponse
+    UserProfileResponse,
+    ErrorResponse,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
+    ResendVerificationRequest,
+    SuccessResponse
 )
-from .auth import hash_password, verify_password, create_access_token
+from .auth import hash_password, verify_password, create_access_token, get_current_user
+
+from .email_utils import (
+    generate_verification_token,
+    generate_reset_password_token,
+    get_token_expiry,
+    is_token_expired,
+    send_verification_email,
+    send_password_reset_email,
+    send_password_changed_confirmation
+)
 
 # ============================================
 # APPLICATION INITIALIZATION
@@ -147,6 +163,12 @@ async def register_user(
     # 3. HASHER LE MOT DE PASSE
     # ============================================
     password_hash = hash_password(user_data.password)
+
+     # ============================================
+    # 3.5 GÉNÉRER UN TOKEN DE VÉRIFICATION EMAIL
+    # ============================================
+    verification_token = generate_verification_token()
+    token_expiry = get_token_expiry(hours=24)  # Valide 24h
     
     # ============================================
     # 4. CRÉER L'UTILISATEUR
@@ -158,7 +180,10 @@ async def register_user(
         date_of_birth=user_data.personal_info.date_of_birth,
         password_hash=password_hash,
         role=user_data.role,
-        is_active=True
+        is_active=True,
+        is_email_verified=False,  # Par défaut non vérifié
+        verification_token=verification_token,
+        token_expires_at=token_expiry
     )
     
     db.add(new_user)
@@ -204,11 +229,21 @@ async def register_user(
     # ============================================
     # 7. PRÉPARER LA RÉPONSE
     # ============================================
-    response_message = (
-        "Inscription réussie ! Vérifiez votre email pour compléter la vérification NFC."
-        if user_data.role == 'guide'
-        else "Bienvenue sur Morchid Hub !"
+    # Envoyer l'email de vérification
+    send_verification_email(
+        email=new_user.email,
+        full_name=new_user.full_name,
+        token=verification_token
     )
+
+    response_message = (
+        "Inscription réussie ! Vérifiez votre email pour activer votre compte."
+        if user_data.role == 'guide'
+        else "Bienvenue sur Morchid Hub ! Vérifiez votre email pour activer votre compte."
+    )
+
+
+    
     
     return RegistrationResponse(
         status="success",
@@ -275,6 +310,13 @@ async def login_user(
         )
     
     # ============================================
+    # 3.5 AVERTIR SI L'EMAIL N'EST PAS VÉRIFIÉ (mais autoriser quand même)
+    # ============================================
+    # Note: En production, vous pourriez bloquer la connexion si non vérifié
+    if not user.is_email_verified:
+        print(f" Utilisateur {user.email} connecté mais email non vérifié")
+    
+    # ============================================
     # 4. CRÉER LE TOKEN JWT
     # ============================================
     token_data = {
@@ -292,6 +334,406 @@ async def login_user(
         token_type="bearer",
         user=UserResponse.from_orm(user)
     )
+
+# ============================================
+# EMAIL VERIFICATION ENDPOINTS
+# ============================================
+
+@app.post(
+    "/api/v1/auth/verify-email",
+    response_model=SuccessResponse,
+    tags=["Authentication"]
+)
+async def verify_email(
+    request: VerifyEmailRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Vérifier l'email d'un utilisateur avec le token reçu par email
+    
+    - **token**: Token de vérification reçu par email
+    """
+    
+    # ============================================
+    # 1. TROUVER L'UTILISATEUR PAR TOKEN
+    # ============================================
+    user = db.query(User).filter(
+        User.verification_token == request.token
+    ).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "INVALID_TOKEN",
+                "message": "Token de vérification invalide ou déjà utilisé"
+            }
+        )
+    
+    # ============================================
+    # 2. VÉRIFIER QUE LE TOKEN N'A PAS EXPIRÉ
+    # ============================================
+    if is_token_expired(user.token_expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "TOKEN_EXPIRED",
+                "message": "Le token de vérification a expiré. Demandez un nouveau lien."
+            }
+        )
+    
+    # ============================================
+    # 3. MARQUER L'EMAIL COMME VÉRIFIÉ
+    # ============================================
+    user.is_email_verified = True
+    user.verification_token = None  # Invalider le token
+    user.token_expires_at = None
+    
+    db.commit()
+
+    print(f" Email vérifié pour {user.email}")
+    
+    return SuccessResponse(
+        status="success",
+        message="Votre email a été vérifié avec succès ! Vous pouvez maintenant vous connecter.",
+        data={"email": user.email}
+    )
+
+@app.get("/api/v1/verify-email", tags=["Authentication"])
+async def verify_email_get(token: str, db: Session = Depends(get_db)):
+    """
+    Route appelée quand on clique sur le lien du terminal (Simulation)
+    """
+    # 1. Chercher l'utilisateur par token
+    user = db.query(User).filter(User.verification_token == token).first()
+    
+    if not user:
+        return {"status": "error", "message": "Lien invalide ou expiré."}
+
+    # 2. Vérifier l'email
+    user.is_email_verified = True
+    user.verification_token = None
+    user.token_expires_at = None
+    
+    db.commit()
+    
+    print(f"Compte activé via lien pour : {user.email}")
+    
+    return {
+        "status": "success", 
+        "message": f"Félicitations {user.full_name}, ton compte Morchid Hub est maintenant actif !"
+    }
+
+@app.post(
+    "/api/v1/auth/resend-verification",
+    response_model=SuccessResponse,
+    tags=["Authentication"]
+)
+async def resend_verification_email(
+    request: ResendVerificationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Renvoyer l'email de vérification
+    
+    - **email**: Email de l'utilisateur
+    """
+    
+    # ============================================
+    # 1. TROUVER L'UTILISATEUR
+    # ============================================
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        # Ne pas révéler si l'email existe ou non (sécurité)
+        return SuccessResponse(
+            status="success",
+            message="Si cet email existe, un nouveau lien de vérification a été envoyé."
+        )  
+
+    # ============================================
+    # 2. VÉRIFIER SI L'EMAIL EST DÉJÀ VÉRIFIÉ
+    # ============================================
+    if user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "ALREADY_VERIFIED",
+                "message": "Votre email est déjà vérifié"
+            }
+        )
+    
+    # ============================================
+    # 3. GÉNÉRER UN NOUVEAU TOKEN
+    # ============================================
+    new_token = generate_verification_token()
+    user.verification_token = new_token
+    user.token_expires_at = get_token_expiry(hours=24)
+    
+    db.commit()
+# ============================================
+    # 4. ENVOYER L'EMAIL
+    # ============================================
+    send_verification_email(
+        email=user.email,
+        full_name=user.full_name,
+        token=new_token
+    )
+    
+    return SuccessResponse(
+        status="success",
+        message="Un nouveau lien de vérification a été envoyé à votre adresse email."
+    )
+
+# ============================================
+# PASSWORD RESET ENDPOINTS
+# ============================================
+
+@app.post(
+    "/api/v1/auth/forgot-password",
+    response_model=SuccessResponse,
+    tags=["Authentication"]
+)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Demander un lien de réinitialisation de mot de passe
+    
+    - **email**: Email de l'utilisateur
+    """
+    
+    # ============================================
+    # 1. TROUVER L'UTILISATEUR
+    # ============================================
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        # Ne pas révéler si l'email existe ou non (sécurité)
+        return SuccessResponse(
+            status="success",
+            message="Si cet email existe, un lien de réinitialisation a été envoyé."
+        )
+    # ============================================
+    # 2. GÉNÉRER UN TOKEN DE RÉINITIALISATION
+    # ============================================
+    reset_token = generate_reset_password_token()
+    user.reset_password_token = reset_token
+    user.token_expires_at = get_token_expiry(hours=24)  # Valide 24h
+    
+    db.commit()
+
+    # ============================================
+    # 3. ENVOYER L'EMAIL
+    # ============================================
+    send_password_reset_email(
+        email=user.email,
+        full_name=user.full_name,
+        token=reset_token
+    )
+    
+    return SuccessResponse(
+        status="success",
+        message="Si cet email existe, un lien de réinitialisation a été envoyé.",
+        data={"email_sent_to": request.email}
+    )
+@app.get("/api/v1/reset-password-page", tags=["Authentication"])
+async def reset_password_page(token: str, db: Session = Depends(get_db)):
+    """
+    Simule la page où l'on saisit le nouveau mot de passe
+    """
+    user = db.query(User).filter(User.reset_password_token == token).first()
+    
+    if not user:
+        return {"status": "error", "message": "Token de réinitialisation invalide."}
+        
+    return {
+        "status": "success",
+        "message": f"Bonjour {user.full_name}, vous pouvez maintenant envoyer un POST vers /api/v1/auth/reset-password avec votre nouveau mot de passe."
+    }
+
+@app.post(
+    "/api/v1/auth/reset-password",
+    response_model=SuccessResponse,
+    tags=["Authentication"]
+)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Réinitialiser le mot de passe avec le token reçu par email
+    
+    - **token**: Token de réinitialisation
+    - **new_password**: Nouveau mot de passe
+    """
+    
+    # ============================================
+    # 1. TROUVER L'UTILISATEUR PAR TOKEN
+    # ============================================
+    user = db.query(User).filter(
+        User.reset_password_token == request.token
+    ).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "INVALID_TOKEN",
+                "message": "Token de réinitialisation invalide ou déjà utilisé"
+            }
+        )
+    
+    # ============================================
+    # 2. VÉRIFIER QUE LE TOKEN N'A PAS EXPIRÉ
+    # ============================================
+    if is_token_expired(user.token_expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "TOKEN_EXPIRED",
+                "message": "Le token a expiré. Demandez un nouveau lien de réinitialisation."
+            }
+        )
+    
+    # ============================================
+    # 3. METTRE À JOUR LE MOT DE PASSE
+    # ============================================
+    user.password_hash = hash_password(request.new_password)
+    user.reset_password_token = None  # Invalider le token
+    user.token_expires_at = None
+    
+    db.commit()
+    
+    # ============================================
+    # 4. ENVOYER EMAIL DE CONFIRMATION
+    # ============================================
+    send_password_changed_confirmation(
+        email=user.email,
+        full_name=user.full_name
+    )
+    
+    print(f"Mot de passe réinitialisé pour {user.email}")
+    
+    return SuccessResponse(
+        status="success",
+        message="Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter."
+    )
+
+# ============================================
+# USER PROFILE ENDPOINTS
+# ============================================
+
+@app.get(
+    "/api/v1/auth/me",
+    response_model=UserProfileResponse,
+    tags=["User Profile"]
+)
+async def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Récupérer le profil complet de l'utilisateur connecté
+    
+    Nécessite un token JWT valide dans l'header Authorization
+    
+    Returns:
+        - Informations utilisateur
+        - Profil guide (si role = 'guide')
+        - Statistiques (nombre de vues, réservations, etc.)
+    """
+    
+    # ============================================
+    # 1. PRÉPARER LES DONNÉES UTILISATEUR
+    # ============================================
+    user_data = UserResponse.from_orm(current_user)
+    
+    # ============================================
+    # 2. SI GUIDE, RÉCUPÉRER LE PROFIL GUIDE
+    # ============================================
+    guide_profile = None
+    stats = None
+    
+    if current_user.role == 'guide':
+        guide = db.query(Guide).filter(Guide.user_id == current_user.id).first()
+        if guide:
+            guide_profile = GuideResponse.from_orm(guide)
+            
+            # ============================================
+            # 3. CALCULER LES STATISTIQUES DU GUIDE
+            # ============================================
+            # TODO: Implémenter les vraies statistiques quand les tables existent
+            stats = {
+                "total_views": 0,  # TODO: Compter depuis table 'views'
+                "upcoming_bookings": 0,  # TODO: Compter depuis table 'bookings'
+                "completed_trips": 0,  # TODO: Compter depuis table 'trips'
+                "total_earnings": 0.0,  # TODO: Calculer depuis table 'payments'
+                "average_rating": 0.0,  # TODO: Calculer depuis table 'reviews'
+                "profile_completion": _calculate_profile_completion(current_user, guide)
+            }
+    else:
+        # ============================================
+        # 4. STATISTIQUES POUR TOURISTE
+        # ============================================
+        stats = {
+            "total_bookings": 0,  # TODO: Compter depuis table 'bookings'
+            "upcoming_trips": 0,
+            "completed_trips": 0,
+            "favorite_guides": 0,  # TODO: Compter depuis table 'favorites'
+            "total_spent": 0.0
+        }
+    
+    return UserProfileResponse(
+        user=user_data,
+        guide_profile=guide_profile,
+        stats=stats
+    )
+
+
+def _calculate_profile_completion(user: User, guide: Optional[Guide]) -> int:
+    """
+    Calcule le pourcentage de complétion du profil
+    
+    Args:
+        user: Objet User
+        guide: Objet Guide (si applicable)
+        
+    Returns:
+        Pourcentage de complétion (0-100)
+    """
+    total_fields = 0
+    completed_fields = 0
+    
+    # Champs utilisateur de base
+    user_fields = {
+        'full_name': user.full_name,
+        'email': user.email,
+        'phone': user.phone,
+        'date_of_birth': user.date_of_birth,
+        'is_email_verified': user.is_email_verified
+    }
+    
+    total_fields += len(user_fields)
+    completed_fields += sum(1 for v in user_fields.values() if v)
+    
+    # Si guide, ajouter les champs guide
+    if guide:
+        guide_fields = {
+            'languages': guide.languages and len(guide.languages) > 0,
+            'specialties': guide.specialties and len(guide.specialties) > 0,
+            'cities_covered': guide.cities_covered and len(guide.cities_covered) > 0,
+            'bio': guide.bio and len(guide.bio) >= 50,
+            'is_verified': guide.is_verified,
+            'has_official_license': guide.has_official_license
+        }
+        
+        total_fields += len(guide_fields)
+        completed_fields += sum(1 for v in guide_fields.values() if v)
+    
+    return int((completed_fields / total_fields) * 100) if total_fields > 0 else 0
+
 
 
 # ============================================

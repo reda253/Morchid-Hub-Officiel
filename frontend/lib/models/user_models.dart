@@ -111,6 +111,7 @@ class UserData {
   final String phone;
   final String role;
   final bool isActive;
+    final bool isEmailVerified;
   final DateTime createdAt;
 
   UserData({
@@ -120,6 +121,7 @@ class UserData {
     required this.phone,
     required this.role,
     required this.isActive,
+    required this.isEmailVerified,
     required this.createdAt,
   });
 
@@ -131,6 +133,7 @@ class UserData {
       phone: json['phone'],
       role: json['role'],
       isActive: json['is_active'] ?? true,
+      isEmailVerified: json['is_email_verified'] ?? false,
       createdAt: json['created_at'] != null 
         ? DateTime.parse(json['created_at']) 
         : DateTime.now(),
@@ -314,6 +317,32 @@ class SuccessResponse {
       status: json['status'],
       message: json['message'],
       data: json['data'],
+    );
+  }
+}
+
+// ============================================
+// 📊 MODELS POUR LE PROFIL COMPLET
+// ============================================
+
+class UserProfileResponse {
+  final UserData user;
+  final GuideProfile? guideProfile;
+  final Map<String, dynamic>? stats;
+
+  UserProfileResponse({
+    required this.user,
+    this.guideProfile,
+    this.stats,
+  });
+
+  factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
+    return UserProfileResponse(
+      user: UserData.fromJson(json['user']),
+      guideProfile: json['guide_profile'] != null
+          ? GuideProfile.fromJson(json['guide_profile'])
+          : null,
+      stats: json['stats'],
     );
   }
 }

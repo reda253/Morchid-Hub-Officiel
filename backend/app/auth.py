@@ -126,3 +126,81 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "Le mot de passe doit contenir des lettres et des chiffres"
     
     return True, "Mot de passe valide"
+
+
+# ============================================
+# DÉPENDANCES FASTAPI POUR AUTHENTIFICATION
+# ============================================
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+security = HTTPBearer()
+
+
+from .database import get_db
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """
+    Dépendance FastAPI pour obtenir l'utilisateur actuel depuis le token JWT
+    
+    Usage:
+        @app.get("/protected")
+        def protected_route(current_user: User = Depends(get_current_user)):
+            return {"user": current_user.email}
+    
+    Args:
+        credentials: Token JWT depuis l'header Authorization
+        db: Session de base de données
+        
+    Returns:
+        L'objet User actuel
+        
+    Raises:
+        HTTPException 401 si le token est invalide
+    """
+    from .models import User
+    
+    token = credentials.credentials
+    
+    # Décoder le token
+    payload = decode_access_token(token)
+    
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error_code": "INVALID_TOKEN",
+                "message": "Token invalide ou expiré"
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Récupérer l'utilisateur depuis la DB
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error_code": "USER_NOT_FOUND",
+                "message": "Utilisateur non trouvé"
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "ACCOUNT_DISABLED",
+                "message": "Compte désactivé"
+            }
+        )
+    
+    return user

@@ -104,6 +104,7 @@ class UserResponse(BaseModel):
     phone: str
     role: str
     is_active: bool
+    is_email_verified: bool
     created_at: datetime
     
     class Config:
@@ -122,6 +123,15 @@ class GuideResponse(BaseModel):
     is_verified: bool
     eco_score: int
     approval_status: str
+    
+    class Config:
+        from_attributes = True
+
+class UserProfileResponse(BaseModel):
+    """Profil complet de l'utilisateur avec données guide si applicable"""
+    user: UserResponse
+    guide_profile: Optional[GuideResponse] = None
+    stats: Optional[dict] = None  # Statistiques dynamiques
     
     class Config:
         from_attributes = True
@@ -152,3 +162,39 @@ class ErrorResponse(BaseModel):
     error_code: str
     message: str
     details: Optional[dict] = None
+
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Demande de réinitialisation de mot de passe"""
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    """Réinitialisation du mot de passe avec token"""
+    token: str
+    new_password: str = Field(..., min_length=6)
+    
+    @validator('new_password')
+    def validate_password_strength(cls, v):
+        """Vérifie la force du mot de passe"""
+        if not any(c.isalpha() for c in v):
+            raise ValueError('Le mot de passe doit contenir au moins une lettre')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+        return v
+    
+class VerifyEmailRequest(BaseModel):
+    """Vérification d'email avec token"""
+    token: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """Demande de renvoi d'email de vérification"""
+    email: EmailStr
+
+
+class SuccessResponse(BaseModel):
+    """Réponse de succès générique"""
+    status: str = "success"
+    message: str
+    data: Optional[dict] = None
