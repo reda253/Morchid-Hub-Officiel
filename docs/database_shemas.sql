@@ -56,7 +56,56 @@ CREATE TABLE reservations (
 );
 
 
-
+CREATE TABLE guide_routes (
+    -- Clé primaire
+    id VARCHAR PRIMARY KEY,
+    
+    -- Clé étrangère vers le guide
+    guide_id VARCHAR NOT NULL,
+    
+    -- ============================================
+    -- COLONNES GÉOSPATIALES (PostGIS)
+    -- ============================================
+    
+    -- Ligne du trajet complet (LINESTRING)
+    route_line GEOMETRY(LINESTRING, 4326) NOT NULL,
+    
+    -- Point de départ (POINT)
+    start_point GEOMETRY(POINT, 4326) NOT NULL,
+    
+    -- Point d'arrivée (POINT)
+    end_point GEOMETRY(POINT, 4326) NOT NULL,
+    
+    -- ============================================
+    -- MÉTADONNÉES DU TRAJET
+    -- ============================================
+    
+    -- Coordonnées JSON (pour compatibilité frontend)
+    coordinates JSONB NOT NULL,
+    
+    -- Distance en kilomètres
+    distance DOUBLE PRECISION NOT NULL,
+    
+    -- Durée en minutes
+    duration DOUBLE PRECISION NOT NULL,
+    
+    -- Adresses lisibles
+    start_address TEXT,
+    end_address TEXT,
+    
+    -- Statut (un seul trajet actif par guide)
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    
+    -- Métadonnées temporelles
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Contrainte de clé étrangère
+    CONSTRAINT fk_guide
+        FOREIGN KEY(guide_id)
+        REFERENCES guides(id)
+        ON DELETE CASCADE
+);
 
 
 
