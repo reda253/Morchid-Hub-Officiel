@@ -123,9 +123,19 @@ class GuideResponse(BaseModel):
     is_verified: bool
     eco_score: int
     approval_status: str
+    profile_photo_url: Optional[str] = None
+    license_card_url: Optional[str] = None
+    cine_card_url: Optional[str] = None
     
     class Config:
         from_attributes = True
+
+    @validator('profile_photo_url', 'license_card_url', 'cine_card_url', pre=True)
+    def normalize_paths(cls, v):
+        """Remplace les backslashes Windows par des slashes URL"""
+        if v and isinstance(v, str):
+            return v.replace('\\', '/')
+        return v
 
 class UserProfileResponse(BaseModel):
     """Profil complet de l'utilisateur avec données guide si applicable"""
@@ -193,8 +203,110 @@ class ResendVerificationRequest(BaseModel):
     email: EmailStr
 
 
+# ============================================
+# SCHEMAS POUR LES ROUTES (TRAJETS)
+# ============================================
+
+class RouteCoordinate(BaseModel):
+    """
+    Coordonnée GPS d'un point du trajet
+    Compatible avec le format Flutter/OSM
+    """
+    lat: float = Field(..., ge=-90, le=90, description="Latitude WGS84")
+    lng: float = Field(..., ge=-180, le=180, description="Longitude WGS84")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "lat": 33.5731,
+                "lng": -7.5898
+            }
+        }
+
+
+class GuideRouteCreate(BaseModel):
+    """
+    Schema pour créer un nouveau trajet de guide
+    Reçu depuis le frontend Flutter
+    """
+    coordinates: List[RouteCoordinate] = Field(
+        ..., 
+        min_items=2,
+        description="Liste des points du trajet (minimum 2 points)"
+    )
+    start_point: RouteCoordinate = Field(..., description="Point de départ")
+    end_point: RouteCoordinate = Field(..., description="Point d'arrivée")
+    distance: float = Field(..., gt=0, description="Distance totale en kilomètres")
+    duration: float = Field(..., gt=0, description="Durée estimée en minutes")
+    start_address: Optional[str] = Field(None, max_length=500, description="Adresse de départ")
+    end_address: Optional[str] = Field(None, max_length=500, description="Adresse d'arrivée")
+    
+    @validator('coordinates')
+    def validate_coordinates(cls, v):
+        """Valide que le trajet a suffisamment de points"""
+        if len(v) < 2:
+            raise ValueError('Un trajet doit avoir au moins 2 points (départ et arrivée)')
+        return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "coordinates": [
+                    {"lat": 33.5731, "lng": -7.5898},
+                    {"lat": 33.5800, "lng": -7.5950},
+                    {"lat": 33.5850, "lng": -7.6000}
+                ],
+                "start_point": {"lat": 33.5731, "lng": -7.5898},
+                "end_point": {"lat": 33.5850, "lng": -7.6000},
+                "distance": 2.5,
+                "duration": 15.0,
+                "start_address": "Casa Voyageurs, Casablanca",
+                "end_address": "Mosquée Hassan II, Casablanca"
+            }
+        }
+
+
+class GuideRouteResponse(BaseModel):
+    """
+    Schema de réponse pour un trajet de guide
+    Envoyé vers le frontend Flutter
+    """
+    id: str
+    guide_id: str
+    coordinates: List[dict]  # Liste de {lat, lng}
+    distance: float
+    duration: float
+    start_address: Optional[str] = None
+    end_address: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "guide_id": "guide_123",
+                "coordinates": [
+                    {"lat": 33.5731, "lng": -7.5898},
+                    {"lat": 33.5800, "lng": -7.5950}
+                ],
+                "distance": 2.5,
+                "duration": 15.0,
+                "start_address": "Casa Voyageurs, Casablanca",
+                "end_address": "Mosquée Hassan II, Casablanca",
+                "is_active": True,
+                "created_at": "2024-01-15T10:30:00Z",
+                "updated_at": "2024-01-15T10:30:00Z"
+            }
+        }
+
+
 class SuccessResponse(BaseModel):
     """Réponse de succès générique"""
     status: str = "success"
     message: str
     data: Optional[dict] = None
+
+

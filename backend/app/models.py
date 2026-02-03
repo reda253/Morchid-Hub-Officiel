@@ -3,12 +3,12 @@ SQLAlchemy Database Models
 Définit la structure des tables PostgreSQL
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 import uuid
-
+from geoalchemy2 import Geometry
 from .database import Base
 
 
@@ -80,6 +80,10 @@ class Guide(Base):
     
     # NFC Data (pour vérification future)
     cine_number = Column(String(20), nullable=True)
+
+    profile_photo_url = Column(Text, nullable=True)  # Chemin vers la photo de profil
+    license_card_url = Column(Text, nullable=True)   # Chemin vers la photo de la licence
+    cine_card_url = Column(Text, nullable=True)      # Chemin vers la photo de la CINE
     
     # Métadonnées
     approval_status = Column(String(20), default='pending_approval')  # pending_approval, approved, rejected
@@ -88,6 +92,72 @@ class Guide(Base):
     
     # Relation inverse avec User
     user = relationship("User", back_populates="guide_profile")
+    routes = relationship("GuideRoute", back_populates="guide", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Guide(id={self.id}, user_id={self.user_id}, is_verified={self.is_verified})>"
+    
+
+
+class GuideRoute(Base):
+    __tablename__ = "guide_routes"
+    
+    id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    guide_id = Column(String, ForeignKey("guides.id", on_delete="CASCADE"), nullable=False, index=True)
+    
+    # Coordonnées stockées en JSON
+    route_line = Column(
+        Geometry(geometry_type='LINESTRING', srid=4326),
+        nullable=False,
+        index=True  # Index spatial pour requêtes géographiques rapides
+    )
+    
+    # Points de départ et arrivée (POINT avec coordonnées WGS84)
+    start_point = Column(
+        Geometry(geometry_type='POINT', srid=4326),
+        nullable=False,
+        index=True
+    )
+    
+    end_point = Column(
+        Geometry(geometry_type='POINT', srid=4326),
+        nullable=False,
+        index=True
+    )
+    coordinates = Column(JSON, nullable=False)
+    
+    
+    
+    distance = Column(Float, nullable=False)
+    duration = Column(Float, nullable=False)
+    start_address = Column(Text, nullable=True)
+    end_address = Column(Text, nullable=True)
+    
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    guide = relationship("Guide", back_populates="routes")
+
+    def __repr__(self):
+        return f"<GuideRoute(id={self.id}, guide_id={self.guide_id}, distance={self.distance}km, is_active={self.is_active})>"
+    
+    # ============================================
+    # MÉTHODES UTILITAIRES
+    # ============================================
+    
+    def to_dict(self):
+        """Convertit le modèle en dictionnaire pour la réponse API"""
+        return {
+            'id': self.id,
+            'guide_id': self.guide_id,
+            'coordinates': self.coordinates,
+            'distance': self.distance,
+            'duration': self.duration,
+            'start_address': self.start_address,
+            'end_address': self.end_address,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

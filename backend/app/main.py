@@ -3,15 +3,23 @@ Morchid Hub Backend API
 FastAPI application with PostgreSQL integration
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List
+from geoalchemy2.shape import to_shape, from_shape
+from sqlalchemy.sql import func
+from shapely.geometry import Point, LineString
+from typing import List, Optional
+import os
+import uuid
+import shutil
+from pathlib import Path
 
 from .config import settings
 from .database import get_db, init_db, engine
-from .models import User, Guide, Base
+from .models import User, Guide, Base, GuideRoute
 from .schemas import (
     UserRegistration,
     UserLogin,
@@ -25,7 +33,9 @@ from .schemas import (
     ResetPasswordRequest,
     VerifyEmailRequest,
     ResendVerificationRequest,
-    SuccessResponse
+    SuccessResponse,
+    GuideRouteCreate, 
+    GuideRouteResponse
 )
 from .auth import hash_password, verify_password, create_access_token, get_current_user
 
@@ -48,6 +58,30 @@ app = FastAPI(
     version=settings.VERSION,
     description=settings.DESCRIPTION,
 )
+
+# ============================================
+# UPLOADS DIRECTORY CONFIGURATION
+# ============================================
+
+# Créer le dossier uploads s'il n'existe pas
+# Utiliser un chemin absolu basé sur l'emplacement de main.py (backend/app/main.py -> backend/uploads)
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Sous-dossiers pour organisation
+PROFILE_DIR = UPLOAD_DIR / "profiles"
+LICENSE_DIR = UPLOAD_DIR / "licenses"
+CINE_DIR = UPLOAD_DIR / "cines"
+
+PROFILE_DIR.mkdir(exist_ok=True)
+LICENSE_DIR.mkdir(exist_ok=True)
+CINE_DIR.mkdir(exist_ok=True)
+
+# Servir les fichiers statiques
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+
 
 # ============================================
 # CORS CONFIGURATION
@@ -74,11 +108,12 @@ async def startup_event():
     # Créer les tables si elles n'existent pas
     Base.metadata.create_all(bind=engine)
     print("Base de donnees initialisee")
+    print(f"Dossier uploads créé: {UPLOAD_DIR.absolute()}")
 
 
 # ============================================
 # HEALTH CHECK ENDPOINT
-# ============================================
+# ============================================@
 
 @app.get("/")
 async def root():
@@ -325,6 +360,8 @@ async def login_user(
         "role": user.role
     }
     access_token = create_access_token(token_data)
+
+    print(f"[OK] Connexion reussie pour {user.email}")
     
     # ============================================
     # 5. RETOURNER LE TOKEN ET LES INFOS USER
@@ -391,7 +428,7 @@ async def verify_email(
     
     db.commit()
 
-    print(f" Email vérifié pour {user.email}")
+    print(f"[OK] Email verifie pour {user.email}")
     
     return SuccessResponse(
         status="success",
@@ -671,7 +708,10 @@ async def get_current_user_profile(
                 "completed_trips": 0,  # TODO: Compter depuis table 'trips'
                 "total_earnings": 0.0,  # TODO: Calculer depuis table 'payments'
                 "average_rating": 0.0,  # TODO: Calculer depuis table 'reviews'
-                "profile_completion": _calculate_profile_completion(current_user, guide)
+                "profile_completion": _calculate_profile_completion(current_user, guide),
+                "total_bookings": 0,
+                "total_revenue": 0,
+                "total_reviews": 0
             }
     else:
         # ============================================
@@ -682,7 +722,8 @@ async def get_current_user_profile(
             "upcoming_trips": 0,
             "completed_trips": 0,
             "favorite_guides": 0,  # TODO: Compter depuis table 'favorites'
-            "total_spent": 0.0
+            "total_spent": 0.0,
+            "favorites": 0
         }
     
     return UserProfileResponse(
@@ -726,13 +767,199 @@ def _calculate_profile_completion(user: User, guide: Optional[Guide]) -> int:
             'cities_covered': guide.cities_covered and len(guide.cities_covered) > 0,
             'bio': guide.bio and len(guide.bio) >= 50,
             'is_verified': guide.is_verified,
-            'has_official_license': guide.has_official_license
+            'has_official_license': guide.has_official_license,
+            'profile_photo_url': guide.profile_photo_url is not None,
+            'license_card_url': guide.license_card_url is not None,
+            'cine_card_url': guide.cine_card_url is not None
         }
         
         total_fields += len(guide_fields)
         completed_fields += sum(1 for v in guide_fields.values() if v)
     
     return int((completed_fields / total_fields) * 100) if total_fields > 0 else 0
+
+
+# ============================================
+# GUIDE VERIFICATION ENDPOINT (NOUVEAU)
+# ============================================
+
+def save_upload_file(upload_file: UploadFile, destination: Path) -> str:
+    """
+    Sauvegarde un fichier uploadé avec un nom unique
+    
+    Args:
+        upload_file: Fichier uploadé
+        destination: Dossier de destination
+        
+    Returns:
+        Chemin relatif du fichier sauvegardé
+    """
+    # Générer un nom unique
+    file_extension = os.path.splitext(upload_file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = destination / unique_filename
+    
+    # Sauvegarder le fichier
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(upload_file.file, buffer)
+    
+    # Retourner le chemin relatif
+    return str(file_path.relative_to(Path("."))).replace(os.path.sep, "/")
+
+
+@app.post(
+    "/api/v1/auth/verify-guide",
+    response_model=SuccessResponse,
+    tags=["Guide Verification"]
+)
+async def verify_guide_identity(
+    cine_number: str = Form(...),
+    license_number: str = Form(...),
+    profile_photo: UploadFile = File(...),
+    license_photo: UploadFile = File(...),
+    cine_photo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Soumettre les documents d'identité pour vérification du guide
+    
+    - **cine_number**: Numéro de carte d'identité nationale (CINE)
+    - **license_number**: Numéro de licence de guide touristique
+    - **profile_photo**: Photo de profil du guide
+    - **license_photo**: Photo de la licence de guide
+    - **cine_photo**: Photo de la carte CINE
+    
+    Nécessite une authentification (guide seulement)
+    """
+    
+    # ============================================
+    # 1. VÉRIFIER QUE L'UTILISATEUR EST UN GUIDE
+    # ============================================
+    if current_user.role != 'guide':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "NOT_A_GUIDE",
+                "message": "Seuls les guides peuvent soumettre des documents de vérification"
+            }
+        )
+    
+    # ============================================
+    # 2. RÉCUPÉRER LE PROFIL GUIDE
+    # ============================================
+    guide = db.query(Guide).filter(Guide.user_id == current_user.id).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "GUIDE_PROFILE_NOT_FOUND",
+                "message": "Profil guide non trouvé"
+            }
+        )
+    
+    # ============================================
+    # 3. VÉRIFIER QUE LE GUIDE N'EST PAS DÉJÀ VÉRIFIÉ
+    # ============================================
+    if guide.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "ALREADY_VERIFIED",
+                "message": "Votre compte est déjà vérifié"
+            }
+        )
+    
+    # ============================================
+    # 4. VALIDER LES FORMATS DE FICHIERS
+    # ============================================
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
+    
+    for file in [profile_photo, license_photo, cine_photo]:
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error_code": "INVALID_FILE_FORMAT",
+                    "message": f"Format de fichier non supporté: {file.filename}. Utilisez JPG, PNG ou WEBP."
+                }
+            )
+    
+    # ============================================
+    # 5. SAUVEGARDER LES FICHIERS
+    # ============================================
+    try:
+        # Photo de profil
+        profile_photo_path = save_upload_file(profile_photo, PROFILE_DIR)
+        
+        # Photo de licence
+        license_photo_path = save_upload_file(license_photo, LICENSE_DIR)
+        
+        # Photo CINE
+        cine_photo_path = save_upload_file(cine_photo, CINE_DIR)
+        
+        print(f"[OK] Fichiers sauvegardes:")
+        print(f"   - Profil: {profile_photo_path}")
+        print(f"   - Licence: {license_photo_path}")
+        print(f"   - CINE: {cine_photo_path}")
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "FILE_SAVE_ERROR",
+                "message": f"Erreur lors de la sauvegarde des fichiers: {str(e)}"
+            }
+        )
+    
+    # ============================================
+    # 6. METTRE À JOUR LE PROFIL GUIDE
+    # ============================================
+    try:
+        guide.cine_number = cine_number
+        guide.license_number = license_number
+        guide.profile_photo_url = profile_photo_path
+        guide.license_card_url = license_photo_path
+        guide.cine_card_url = cine_photo_path
+        guide.has_official_license = True
+        guide.approval_status = 'pending_review'  # Passer en révision
+        
+        db.commit()
+        db.refresh(guide)
+        
+        print(f"[OK] Profil guide mis a jour pour {current_user.full_name}")
+        print(f"   - CINE: {cine_number}")
+        print(f"   - Licence: {license_number}")
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "DATABASE_ERROR",
+                "message": f"Erreur lors de la mise à jour: {str(e)}"
+            }
+        )
+    
+    # ============================================
+    # 7. RETOURNER LA RÉPONSE
+    # ============================================
+    return SuccessResponse(
+        status="success",
+        message="Documents reçus ! Votre profil sera certifié sous 12h.",
+        data={
+            "guide_id": guide.id,
+            "approval_status": guide.approval_status,
+            "cine_number": cine_number,
+            "license_number": license_number,
+            "profile_photo_url": f"/{profile_photo_path}",
+            "license_photo_url": f"/{license_photo_path}",
+            "cine_photo_url": f"/{cine_photo_path}"
+        }
+    )
+
 
 
 
@@ -756,6 +983,314 @@ async def get_all_guides(
     guides = db.query(Guide).offset(skip).limit(limit).all()
     return guides
 
+
+
+
+
+# ============================================
+# GUIDE ROUTES ENDPOINTS (NOUVEAU)
+# ============================================
+
+@app.post(
+    "/api/v1/guides/routes",
+    response_model=GuideRouteResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Guide Routes"]
+)
+async def save_guide_route(
+    route_data: GuideRouteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Sauvegarder un nouveau trajet pour un guide
+    
+    - Seuls les guides authentifiés peuvent créer des trajets
+    - Un seul trajet actif par guide (les anciens sont désactivés)
+    - Utilise PostGIS pour stocker les données géospatiales
+    """
+    
+    # ============================================
+    # 1. VÉRIFIER QUE L'UTILISATEUR EST UN GUIDE
+    # ============================================
+    if current_user.role != 'guide':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "NOT_A_GUIDE",
+                "message": "Seuls les guides peuvent créer des trajets"
+            }
+        )
+    
+    # ============================================
+    # 2. RÉCUPÉRER LE PROFIL GUIDE
+    # ============================================
+    guide = db.query(Guide).filter(Guide.user_id == current_user.id).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "GUIDE_PROFILE_NOT_FOUND",
+                "message": "Profil guide non trouvé"
+            }
+        )
+    
+    # ============================================
+    # 3. DÉSACTIVER L'ANCIEN TRAJET (UN SEUL ACTIF)
+    # ============================================
+    db.query(GuideRoute).filter(
+        GuideRoute.guide_id == guide.id,
+        GuideRoute.is_active == True
+    ).update({"is_active": False})
+    
+    # ============================================
+    # 4. CRÉER LES OBJETS GÉOMÉTRIQUES POSTGIS
+    # ============================================
+    try:
+        # Point de départ
+        start_point = Point(route_data.start_point.lng, route_data.start_point.lat)
+        
+        # Point d'arrivée
+        end_point = Point(route_data.end_point.lng, route_data.end_point.lat)
+        
+        # Ligne du trajet complet
+        route_coords = [(coord.lng, coord.lat) for coord in route_data.coordinates]
+        route_line = LineString(route_coords)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "INVALID_GEOMETRY",
+                "message": f"Données géométriques invalides: {str(e)}"
+            }
+        )
+    
+    # ============================================
+    # 5. CRÉER LE NOUVEAU TRAJET
+    # ============================================
+    try:
+        new_route = GuideRoute(
+            guide_id=guide.id,
+            route_line=from_shape(route_line, srid=4326),
+            start_point=from_shape(start_point, srid=4326),
+            end_point=from_shape(end_point, srid=4326),
+            coordinates=[{"lat": c.lat, "lng": c.lng} for c in route_data.coordinates],
+            distance=route_data.distance,
+            duration=route_data.duration,
+            start_address=route_data.start_address,
+            end_address=route_data.end_address,
+            is_active=True
+        )
+        
+        db.add(new_route)
+        db.commit()
+        db.refresh(new_route)
+        
+        print(f"[OK] Trajet sauvegarde pour le guide {guide.id}")
+        print(f"   - Distance: {route_data.distance} km")
+        print(f"   - Durée: {route_data.duration} min")
+        print(f"   - Points: {len(route_data.coordinates)}")
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "SAVE_ERROR",
+                "message": f"Erreur lors de la sauvegarde: {str(e)}"
+            }
+        )
+    
+    # ============================================
+    # 6. RETOURNER LA RÉPONSE
+    # ============================================
+    return GuideRouteResponse(
+        id=new_route.id,
+        guide_id=new_route.guide_id,
+        coordinates=new_route.coordinates,
+        distance=new_route.distance,
+        duration=new_route.duration,
+        start_address=new_route.start_address,
+        end_address=new_route.end_address,
+        is_active=new_route.is_active,
+        created_at=new_route.created_at,
+        updated_at=new_route.updated_at
+    )
+
+
+@app.get(
+    "/api/v1/guides/{guide_id}/route",
+    response_model=GuideRouteResponse,
+    tags=["Guide Routes"]
+)
+async def get_guide_route(
+    guide_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Récupérer le trajet actif d'un guide spécifique
+    
+    - Retourne le trajet avec is_active = True
+    - Accessible publiquement (pour que les touristes voient les trajets)
+    """
+    
+    # ============================================
+    # 1. VÉRIFIER QUE LE GUIDE EXISTE
+    # ============================================
+    guide = db.query(Guide).filter(Guide.id == guide_id).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "GUIDE_NOT_FOUND",
+                "message": "Guide non trouvé"
+            }
+        )
+    
+    # ============================================
+    # 2. RÉCUPÉRER LE TRAJET ACTIF
+    # ============================================
+    route = db.query(GuideRoute).filter(
+        GuideRoute.guide_id == guide_id,
+        GuideRoute.is_active == True
+    ).first()
+    
+    if not route:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "NO_ACTIVE_ROUTE",
+                "message": "Aucun trajet actif pour ce guide"
+            }
+        )
+    
+    # ============================================
+    # 3. RETOURNER LE TRAJET
+    # ============================================
+    return GuideRouteResponse(
+        id=route.id,
+        guide_id=route.guide_id,
+        coordinates=route.coordinates,
+        distance=route.distance,
+        duration=route.duration,
+        start_address=route.start_address,
+        end_address=route.end_address,
+        is_active=route.is_active,
+        created_at=route.created_at,
+        updated_at=route.updated_at
+    )
+
+
+@app.get(
+    "/api/v1/guides/{guide_id}/routes/history",
+    response_model=List[GuideRouteResponse],
+    tags=["Guide Routes"]
+)
+async def get_guide_routes_history(
+    guide_id: str,
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Récupérer l'historique des trajets d'un guide
+    
+    - Accessible uniquement par le guide lui-même
+    - Retourne les 10 derniers trajets (actifs et inactifs)
+    """
+    
+    # Vérifier que l'utilisateur est le guide concerné
+    guide = db.query(Guide).filter(
+        Guide.id == guide_id,
+        Guide.user_id == current_user.id
+    ).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "UNAUTHORIZED",
+                "message": "Vous ne pouvez voir que vos propres trajets"
+            }
+        )
+    
+    # Récupérer l'historique
+    routes = db.query(GuideRoute).filter(
+        GuideRoute.guide_id == guide_id
+    ).order_by(GuideRoute.created_at.desc()).limit(limit).all()
+    
+    return [
+        GuideRouteResponse(
+            id=route.id,
+            guide_id=route.guide_id,
+            coordinates=route.coordinates,
+            distance=route.distance,
+            duration=route.duration,
+            start_address=route.start_address,
+            end_address=route.end_address,
+            is_active=route.is_active,
+            created_at=route.created_at,
+            updated_at=route.updated_at
+        )
+        for route in routes
+    ]
+
+
+@app.delete(
+    "/api/v1/guides/routes/{route_id}",
+    response_model=SuccessResponse,
+    tags=["Guide Routes"]
+)
+async def delete_guide_route(
+    route_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Supprimer un trajet spécifique
+    
+    - Accessible uniquement par le guide propriétaire
+    """
+    
+    # Récupérer le trajet
+    route = db.query(GuideRoute).filter(GuideRoute.id == route_id).first()
+    
+    if not route:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "ROUTE_NOT_FOUND",
+                "message": "Trajet non trouvé"
+            }
+        )
+    
+    # Vérifier que l'utilisateur est le propriétaire
+    guide = db.query(Guide).filter(
+        Guide.id == route.guide_id,
+        Guide.user_id == current_user.id
+    ).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "UNAUTHORIZED",
+                "message": "Vous ne pouvez supprimer que vos propres trajets"
+            }
+        )
+    
+    # Supprimer le trajet
+    db.delete(route)
+    db.commit()
+    
+    return SuccessResponse(
+        status="success",
+        message="Trajet supprimé avec succès",
+        data={"route_id": route_id}
+    )
 
 # ============================================
 # ERROR HANDLERS
