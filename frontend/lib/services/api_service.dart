@@ -4,6 +4,10 @@ import 'package:http/http.dart' as http;
 import '../models/user_models.dart';
 import 'storage_service.dart';
 
+
+
+
+
 /// Service central pour toutes les communications avec l'API Backend
 class ApiService {
   // ============================================
@@ -31,9 +35,10 @@ class ApiService {
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
   static const String verifyEmailEndpoint = '/api/v1/auth/verify-email';
   static const String resendVerificationEndpoint = '/api/v1/auth/resend-verification';
+  static const String verifyGuideEndpoint = '/api/v1/auth/verify-guide';
 
   // Timeout des requêtes
-  static const Duration timeout = Duration(seconds: 30);
+  static const Duration timeout = Duration(seconds: 60);
 
   // ============================================
   // 📝 INSCRIPTION (REGISTER)
@@ -483,4 +488,172 @@ class ApiService {
       );
     }
   }
+
+
+
+  // ============================================
+  // 🎫 VÉRIFICATION GUIDE (NOUVEAU)
+  // ============================================
+
+  /// Soumet les documents d'identité pour vérification du guide
+  static Future<SuccessResponse> submitGuideVerification({
+    required String cineNumber,
+    required String licenseNumber,
+    required io.File profilePhoto,
+    required io.File licensePhoto,
+    required io.File cinePhoto,
+  }) async {
+    try {
+      print('📤 Envoi des documents de vérification');
+
+      // Récupérer le token d'authentification
+      final token = await StorageService.getAccessToken();
+      if (token == null) {
+        throw ApiError(
+          errorCode: 'NOT_AUTHENTICATED',
+          message: 'Vous devez être connecté',
+        );
+      }
+
+      // Créer une requête multipart
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$verifyGuideEndpoint'),
+      );
+
+      // Ajouter le token d'authentification
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+
+      // Ajouter les champs texte
+      request.fields['cine_number'] = cineNumber;
+      request.fields['license_number'] = licenseNumber;
+
+      // Ajouter les fichiers
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'profile_photo',
+          profilePhoto.path,
+        ),
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'license_photo',
+          licensePhoto.path,
+        ),
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'cine_photo',
+          cinePhoto.path,
+        ),
+      );
+
+      print('📤 Envoi de ${request.files.length} fichiers...');
+
+      // Envoyer la requête
+      final streamedResponse = await request.send().timeout(timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('📥 Réponse reçue: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return SuccessResponse.fromJson(responseData);
+      } else if (response.statusCode == 400) {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw ApiError.fromJson(errorData);
+      } else if (response.statusCode == 401) {
+        throw ApiError(
+          errorCode: 'UNAUTHORIZED',
+          message: 'Session expirée. Veuillez vous reconnecter.',
+        );
+      } else if (response.statusCode == 403) {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw ApiError.fromJson(errorData);
+      } else {
+        throw ApiError(
+          errorCode: 'UPLOAD_ERROR',
+          message: 'Erreur lors de l\'envoi des documents (${response.statusCode})',
+        );
+      }
+    } on http.ClientException catch (e) {
+      print('❌ Erreur réseau: $e');
+      throw ApiError(
+        errorCode: 'NETWORK_ERROR',
+        message: 'Erreur de connexion. Vérifiez votre connexion internet.',
+      );
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      print('❌ Erreur inattendue: $e');
+      throw ApiError(
+        errorCode: 'UNEXPECTED_ERROR',
+        message: 'Erreur inattendue: ${e.toString()}',
+      );
+    }
+  }
+
+
+
+  // Obtenir les headers avec authentification
+static Future<Map<String, String>> _getAuthHeaders() async {
+  final token = await StorageService.getAccessToken();
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 }
+
+// Sauvegarder un trajet
+static Future<Map<String, dynamic>> saveGuideRoute(Map<String, dynamic> routeData) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/v1/guides/routes'),
+      headers: await _getAuthHeaders(),
+      body: jsonEncode(routeData),
+    );
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw ApiError(
+        errorCode: error['error_code'] ?? 'SAVE_ERROR',
+        message: error['message'] ?? 'Erreur lors de la sauvegarde',
+      );
+    }
+  } catch (e) {
+    throw ApiError(
+      errorCode: 'NETWORK_ERROR',
+      message: 'Erreur de connexion: ${e.toString()}',
+    );
+  }
+}
+
+// Récupérer un trajet
+static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/v1/guides/$guideId/route'),
+      headers: {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 404) {
+      return null;
+    } else {
+      throw Exception('Erreur ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Erreur lors de la récupération: $e');
+    return null;
+  }
+}
+
+  }
+

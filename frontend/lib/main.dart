@@ -4,6 +4,8 @@ import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/guide_verification_screen.dart';
+import 'screens/map_screen.dart';
 
 
 void main() {
@@ -50,9 +52,24 @@ class MorchidHubApp extends StatelessWidget {
     
     case '/home':
       return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+    case '/verify-guide':
+  return MaterialPageRoute(
+    builder: (_) => const GuideVerificationScreen()
+  );
+  case '/map':
+  final args = settings.arguments as Map<String, dynamic>?;
+  return MaterialPageRoute(
+    builder: (_) => MapScreen(
+      mode: args?['mode'] ?? 'edit',
+      savedRoute: args?['savedRoute'],
+    ),
+  );
     
     default:
       return MaterialPageRoute(builder: (_) => const LoginScreen());
+
+    
   }
 },
     );

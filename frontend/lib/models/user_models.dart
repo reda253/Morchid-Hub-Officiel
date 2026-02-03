@@ -152,6 +152,10 @@ class GuideProfile {
   final bool isVerified;
   final int ecoScore;
   final String approvalStatus;
+  // ✅ NOUVEAU - URLs des photos
+  final String? profilePhotoUrl;
+  final String? licenseCardUrl;
+  final String? cineCardUrl;
 
   GuideProfile({
     required this.id,
@@ -164,6 +168,9 @@ class GuideProfile {
     required this.isVerified,
     required this.ecoScore,
     required this.approvalStatus,
+    this.profilePhotoUrl,      // ✅ Optionnel
+    this.licenseCardUrl,        // ✅ Optionnel
+    this.cineCardUrl,           // ✅ Optionnel
   });
 
   factory GuideProfile.fromJson(Map<String, dynamic> json) {
@@ -178,6 +185,10 @@ class GuideProfile {
       isVerified: json['is_verified'] ?? false,
       ecoScore: json['eco_score'] ?? 0,
       approvalStatus: json['approval_status'] ?? 'pending_approval',
+       // ✅ NOUVEAU - Récupération des URLs
+      profilePhotoUrl: json['profile_photo_url'],
+      licenseCardUrl: json['license_card_url'],
+      cineCardUrl: json['cine_card_url'],
     );
   }
 }

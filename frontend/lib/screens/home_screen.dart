@@ -17,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   int _currentIndex = 0;
 
+
   // Couleurs du design system
   static const Color primaryColor = Color(0xFF2D6A4F);
   static const Color secondaryColor = Color(0xFF1B4332);
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color textLight = Color(0xFF8D99AE);
   static const Color warningColor = Color(0xFFFF9800);
   static const Color errorColor = Color(0xFFE63946);
+  static const Color successColor = Color(0xFF2D6A4F); // Using primary color as success for consistency, or a green
 
   @override
   void initState() {
@@ -84,6 +86,161 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).pushReplacementNamed('/login');
       }
     }
+  }
+
+
+  // ============================================
+  // 🗺️ GESTION DES TRAJETS (ROUTES)
+  // ============================================
+
+  Future<void> _createRoute() async {
+    final routeData = await Navigator.pushNamed(
+      context,
+      '/map',
+      arguments: {'mode': 'edit'},
+    ) as Map<String, dynamic>?;
+
+    if (routeData != null) {
+      try {
+        await ApiService.saveGuideRoute(routeData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Trajet enregistré avec succès'),
+              backgroundColor: successColor, // Utilise ta variable successColor
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Erreur: ${e.toString()}'),
+              backgroundColor: errorColor, // Utilise ta variable errorColor
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _viewRoute(String guideId) async {
+    final route = await ApiService.getGuideRoute(guideId);
+    if (route != null) {
+      Navigator.pushNamed(
+        context,
+        '/map',
+        arguments: {
+          'mode': 'view',
+          'savedRoute': route,
+        },
+      );
+    } else {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ℹ️ Ce guide n\'a pas encore de trajet')),
+      );
+    }
+  }
+
+  // ============================================
+  // 🖼️ HELPER POUR AFFICHER L'AVATAR AVEC PHOTO
+  // ============================================
+  Widget _buildProfileAvatar({
+    required String fullName,
+    String? photoUrl,
+    required double radius,
+    double fontSize = 24,
+  }) {
+    // Si pas de photo, afficher les initiales
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: primaryColor,
+        child: Text(
+          fullName[0].toUpperCase(),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    // Nettoyer l'URL pour éviter les doubles slashes //
+String cleanPhotoUrl = photoUrl.startsWith('/') ? photoUrl.substring(1) : photoUrl;
+String imageUrl = '${ApiService.baseUrl}/$cleanPhotoUrl';
+
+// Debug : Ajoute ce print pour voir l'URL exacte générée dans la console d'Android Studio
+print('DEBUG URL IMAGE: $imageUrl');
+
+    // Afficher la photo avec gestion d'erreur
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: primaryColor,
+      child: CircleAvatar(
+        radius: radius - 2,
+        backgroundImage: NetworkImage(imageUrl),
+        onBackgroundImageError: (exception, stackTrace) {
+          // En cas d'erreur, l'avatar par défaut sera affiché
+          print('Erreur de chargement image: $exception');
+        },
+        child: Container(), // Vide pour montrer l'image de fond
+      ),
+    );
+  }
+
+  // Alternative avec gestion d'erreur plus visible
+  Widget _buildProfileAvatarWithFallback({
+    required String fullName,
+    String? photoUrl,
+    required double radius,
+    double fontSize = 24,
+  }) {
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return _buildDefaultAvatar(fullName, radius, fontSize);
+    }
+
+    String imageUrl = photoUrl;
+    if (!photoUrl.startsWith('http')) {
+      imageUrl = '${ApiService.baseUrl}/$photoUrl';
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.transparent,
+      child: ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildDefaultAvatar(fullName, radius, fontSize);
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('Erreur image: $error');
+            return _buildDefaultAvatar(fullName, radius, fontSize);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultAvatar(String fullName, double radius, double fontSize) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: primaryColor,
+      child: Text(
+        fullName[0].toUpperCase(),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   @override
@@ -338,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ✅ CORRECTION: Message élégant au lieu de la liste de guides
+          // ✅ Section Guides avec bouton Voir trajet
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -346,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Guides Certifiés',
+                    'Découvrir les trajets',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -354,42 +511,95 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: primaryColor.withOpacity(0.2),
+                  
+                  // Carte du trajet
+                  InkWell(
+                    onTap: () {
+                      // TODO: Récupérer le trajet depuis l'API
+                      final savedRoute = {
+                        // Exemple de données (à remplacer par les vraies données de l'API)
+                        'coordinates': [
+                          {'lat': 33.5731, 'lng': -7.5898},
+                          {'lat': 33.5850, 'lng': -7.6100},
+                        ],
+                        'distance': 5.2,
+                        'duration': 15.0,
+                        'start_address': 'Casablanca Marina',
+                        'end_address': 'Mosquée Hassan II',
+                      };
+                      
+                      Navigator.pushNamed(
+                        context,
+                        '/map',
+                        arguments: {
+                          'mode': 'view',
+                          'savedRoute': savedRoute,
+                        },
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: primaryColor.withOpacity(0.2),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.eco_outlined,
-                          size: 50,
-                          color: primaryColor.withOpacity(0.5),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun guide certifié n\'est disponible pour le moment.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: textDark,
-                            fontWeight: FontWeight.w500,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.map,
+                              color: primaryColor,
+                              size: 32,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Revenez bientôt !',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: textLight,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Voir le trajet du guide',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Découvrez l\'itinéraire préparé',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textLight,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            color: primaryColor,
+                            size: 20,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -456,17 +666,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                      CircleAvatar(
+                      _buildProfileAvatarWithFallback(
+                        fullName: user.fullName,
+                        photoUrl: guide?.profilePhotoUrl,
                         radius: 28,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          user.fullName[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: primaryColor,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        fontSize: 24,
                       ),
                     ],
                   ),
@@ -582,14 +786,41 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: 'Obtenez votre badge officiel',
                     enabled: guide?.isVerified == false,
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Fonctionnalité à venir !'),
-                        ),
-                      );
+                      
+                          Navigator.pushNamed(context, '/verify-guide');
                     },
                   ),
                   const SizedBox(height: 40),
+                  // ============================================
+                  // NOUVEAU: Bouton Définir mon trajet
+                  // ============================================
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    icon: Icons.map,
+                    title: 'Définir mon trajet',
+                    subtitle: 'Créez un itinéraire pour vos clients',
+                    enabled: true,
+                    onTap: () async {
+                      final result = await Navigator.pushNamed(
+                        context, 
+                        '/map', 
+                        arguments: {'mode': 'edit'}
+                      );
+                      
+                      if (result != null) {
+                        try {
+                          await ApiService.saveGuideRoute(result as Map<String, dynamic>);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('✅ Trajet mis à jour !'), backgroundColor: successColor)
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('❌ Erreur : $e'), backgroundColor: errorColor)
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -728,17 +959,12 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const SizedBox(height: 20),
             // Avatar
-            CircleAvatar(
+            // ✅ Avatar avec PHOTO pour les guides
+            _buildProfileAvatarWithFallback(
+              fullName: user.fullName,
+              photoUrl: guide?.profilePhotoUrl,
               radius: 60,
-              backgroundColor: primaryColor,
-              child: Text(
-                user.fullName[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              fontSize: 48,
             ),
             const SizedBox(height: 24),
             // Nom complet
