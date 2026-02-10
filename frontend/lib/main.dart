@@ -6,6 +6,8 @@ import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/guide_verification_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/admin_screen.dart';
+import 'widgets/auth_guard.dart';
 
 
 void main() {
@@ -65,6 +67,13 @@ class MorchidHubApp extends StatelessWidget {
       savedRoute: args?['savedRoute'],
     ),
   );
+  case '/admin':
+            return MaterialPageRoute(
+              builder: (_) => AuthGuard(
+                allowedRoles: const ['admin'],
+                child: const AdminScreen(),
+              ),
+            );
     
     default:
       return MaterialPageRoute(builder: (_) => const LoginScreen());

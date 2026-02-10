@@ -16,6 +16,8 @@ import os
 import uuid
 import shutil
 from pathlib import Path
+from .admin import router as admin_router
+
 
 from .config import settings
 from .database import get_db, init_db, engine
@@ -58,6 +60,12 @@ app = FastAPI(
     version=settings.VERSION,
     description=settings.DESCRIPTION,
 )
+
+# ============================================
+# ✅ AJOUT POUR ADMIN - LIGNE À AJOUTER
+# Inclure le router admin APRÈS la création de l'app
+# ============================================
+app.include_router(admin_router)
 
 # ============================================
 # UPLOADS DIRECTORY CONFIGURATION
@@ -216,6 +224,7 @@ async def register_user(
         password_hash=password_hash,
         role=user_data.role,
         is_active=True,
+        is_admin=False,  # Set default to False for new registrations
         is_email_verified=False,  # Par défaut non vérifié
         verification_token=verification_token,
         token_expires_at=token_expiry

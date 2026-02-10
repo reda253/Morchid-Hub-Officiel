@@ -1,0 +1,7 @@
+[-] Attempting login as arodmohamed111666@gmail.com...
+[+] Login successful!
+[+] User Info: ID=4b9646a2-817b-4fc8-9138-89b50bc92362, Role=tourist, IsAdmin=True
+[-] Attempting to access protected admin endpoint: /api/v1/admin/users
+[-] Status Code: 200
+[-] Response: [{"id":"327c1e84-69e1-4706-a058-5204ca4245a5","full_name":"Test Login","email":"test_login_user@example.com","phone":"+212600000001","role":"tourist","is_admin":false,"is_active":true,"is_email_verified":false,"created_at":"2026-02-03T17:08:02.148361+01:00"},{"id":"096d8013-60ab-44ff-9908-fd2281b89f35","full_name":"Test User","email":"test096d8013-60ab-44ff-9908-fd2281b89f35@example.com","phone":null,"role":"guide","is_admin":false,"is_active":true,"is_email_verified":true,"created_at":"2026-02-...
+[SUCCESS] Access Granted! The issue is resolved.

@@ -32,6 +32,8 @@ class StorageService {
       'phone': userData.phone,
       'role': userData.role,
       'is_active': userData.isActive,
+      'is_admin': userData.isAdmin, // <--- AJOUTEZ CETTE LIGNE ICI ✅
+      'is_email_verified': userData.isEmailVerified,
       'created_at': userData.createdAt.toIso8601String(),
     });
     await prefs.setString(_keyUserData, userJson);

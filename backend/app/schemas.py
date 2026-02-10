@@ -101,8 +101,9 @@ class UserResponse(BaseModel):
     id: str
     full_name: str
     email: str
-    phone: str
+    phone: Optional[str] = None
     role: str
+    is_admin: bool  # Add this field
     is_active: bool
     is_email_verified: bool
     created_at: datetime
@@ -123,6 +124,7 @@ class GuideResponse(BaseModel):
     is_verified: bool
     eco_score: int
     approval_status: str
+    rejection_reason: Optional[str] = None  # ✅ NOUVEAU
     profile_photo_url: Optional[str] = None
     license_card_url: Optional[str] = None
     cine_card_url: Optional[str] = None
@@ -301,6 +303,60 @@ class GuideRouteResponse(BaseModel):
                 "updated_at": "2024-01-15T10:30:00Z"
             }
         }
+# ============================================
+# SCHEMAS ADMIN - REJET DE GUIDE
+# ============================================
+
+class GuideRejection(BaseModel):
+    """Schema pour rejeter un guide avec un motif"""
+    reason: str = Field(
+        ..., 
+        min_length=10, 
+        max_length=500,
+        description="Motif du rejet (minimum 10 caractères)"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "reason": "Les documents fournis ne sont pas suffisamment lisibles. Veuillez soumettre des photos de meilleure qualité."
+            }
+        }
+
+
+# ============================================
+# SCHEMAS SUPPORT TECHNIQUE
+# ============================================
+
+class SupportMessageCreate(BaseModel):
+    """Schema pour créer un message de support"""
+    subject: str = Field(..., min_length=5, max_length=200)
+    message: str = Field(..., min_length=10, max_length=2000)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "subject": "Problème de connexion",
+                "message": "Je n'arrive pas à me connecter à mon compte malgré un mot de passe correct."
+            }
+        }
+
+
+class SupportMessageResponse(BaseModel):
+    """Schema de réponse pour un message de support"""
+    id: str
+    user_id: str
+    user_name: str  # Nom de l'utilisateur
+    user_email: str  # Email de l'utilisateur
+    subject: str
+    message: str
+    is_resolved: bool
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
 
 
 class SuccessResponse(BaseModel):

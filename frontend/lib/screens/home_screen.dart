@@ -262,6 +262,10 @@ print('DEBUG URL IMAGE: $imageUrl');
     // ============================================
     return Scaffold(
       backgroundColor: backgroundColor,
+        // ============================================
+      // ✅ AJOUT POUR ADMIN - AppBar modifiée
+      // ============================================
+      appBar: _buildAppBar(),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -282,7 +286,47 @@ print('DEBUG URL IMAGE: $imageUrl');
           : _buildTouristBottomNav(),
     );
   }
-
+  // ============================================
+  // ✅ AJOUT POUR ADMIN - Nouvelle méthode AppBar
+  // ============================================
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(
+        _currentIndex == 0
+            ? 'Accueil'
+            : _currentIndex == 1
+                ? (_userProfile!.user.role == 'guide' ? 'Agenda' : 'Réservations')
+                : 'Profil',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      backgroundColor: primaryColor,
+      elevation: 0,
+      actions: [
+        // ✅ Bouton Admin (visible uniquement si role = 'admin')
+        if (_userProfile?.user.isAdmin == true)
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+            tooltip: 'Dashboard Admin',
+            onPressed: () {
+              Navigator.pushNamed(context, '/admin');
+            },
+          ),
+        // Bouton notifications (tous les utilisateurs)
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+          onPressed: () {
+            // TODO: Implémenter les notifications
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Notifications à venir')),
+            );
+          },
+        ),
+      ],
+    );
+  }
   // ============================================
   // 🔄 ÉCRAN DE CHARGEMENT
   // ============================================

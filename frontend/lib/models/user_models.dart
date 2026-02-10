@@ -110,6 +110,7 @@ class UserData {
   final String email;
   final String phone;
   final String role;
+  final bool isAdmin; // <--- Add this line
   final bool isActive;
     final bool isEmailVerified;
   final DateTime createdAt;
@@ -120,6 +121,7 @@ class UserData {
     required this.email,
     required this.phone,
     required this.role,
+    required this.isAdmin,
     required this.isActive,
     required this.isEmailVerified,
     required this.createdAt,
@@ -132,6 +134,7 @@ class UserData {
       email: json['email'],
       phone: json['phone'],
       role: json['role'],
+      isAdmin: json['is_admin'] ?? false,
       isActive: json['is_active'] ?? true,
       isEmailVerified: json['is_email_verified'] ?? false,
       createdAt: json['created_at'] != null 

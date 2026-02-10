@@ -33,6 +33,7 @@ class User(Base):
     date_of_birth = Column(String(255), nullable=True)
     password_hash = Column(String(255), nullable=True)
     role = Column(String(20), nullable=True ) # 'tourist' ou 'guide'
+    is_admin = Column(Boolean, default=False, nullable=False) #
 
     # Sécurité et vérification
     is_email_verified = Column(Boolean, default=False, nullable=False)
@@ -47,6 +48,8 @@ class User(Base):
     
     # Relation avec la table guides (si role = 'guide')
     guide_profile = relationship("Guide", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    support_messages = relationship("SupportMessage", back_populates="user", cascade="all, delete-orphan")
+
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"
@@ -87,6 +90,8 @@ class Guide(Base):
     
     # Métadonnées
     approval_status = Column(String(20), default='pending_approval')  # pending_approval, approved, rejected
+    rejection_reason = Column(Text, nullable=True)  # ✅ NOUVEAU : Motif de rejet
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -161,3 +166,32 @@ class GuideRoute(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+# ============================================
+# TABLE SUPPORT_MESSAGES (Messages de support technique)
+# ============================================
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+    
+    # Clé primaire
+    id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    
+    # Clé étrangère vers l'utilisateur
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Contenu du message
+    subject = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    
+    # Statut
+    is_resolved = Column(Boolean, default=False, nullable=False, index=True)
+    
+    # Métadonnées
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relation
+    user = relationship("User", back_populates="support_messages")
+    
+    def __repr__(self):
+        return f"<SupportMessage(id={self.id}, user_id={self.user_id}, subject={self.subject}, is_resolved={self.is_resolved})>"
