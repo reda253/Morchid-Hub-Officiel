@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'package:http/http.dart' as http;
 import '../models/user_models.dart';
+import '../models/search_models.dart'; // ✅ NOUVEAU : modèles de recherche
 import 'storage_service.dart';
 
 
@@ -36,6 +37,11 @@ class ApiService {
   static const String verifyEmailEndpoint = '/api/v1/auth/verify-email';
   static const String resendVerificationEndpoint = '/api/v1/auth/resend-verification';
   static const String verifyGuideEndpoint = '/api/v1/auth/verify-guide';
+
+  // ✅ NOUVEAUX endpoints de recherche
+  static const String searchGuidesEndpoint          = '/api/v1/search/guides';
+  static const String searchGuidesWithRoutesEndpoint = '/api/v1/search/guides-with-routes';
+  static const String searchFiltersEndpoint          = '/api/v1/search/filters';
 
   // Timeout des requêtes
   static const Duration timeout = Duration(seconds: 60);
@@ -654,6 +660,149 @@ static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
     return null;
   }
 }
+
+// ============================================
+  // ✅ RECHERCHE DE GUIDES (AMÉLIORÉE)
+  // ============================================
+
+  /// Recherche des guides avec filtres avancés (sans trajet)
+  ///
+  /// Retourne une liste de [SearchGuideResult] (contient user + guide imbriqués).
+  /// Utilisé pour la page de liste simple des guides.
+  static Future<List<SearchGuideResult>> searchGuides({
+    String? query,
+    String? city,
+    String? specialty,
+    String? language,
+    int? minExperience,
+    double? minRating,      // ✅ NOUVEAU
+    int? minEcoScore,       // ✅ NOUVEAU
+    bool verifiedOnly = false,
+    int limit = 20,         // ✅ NOUVEAU : pagination
+    int offset = 0,         // ✅ NOUVEAU : pagination
+  }) async {
+    try {
+      final params = <String, String>{};
+
+      if (query != null && query.isNotEmpty)       params['q']              = query;
+      if (city != null && city.isNotEmpty)         params['city']           = city;
+      if (specialty != null && specialty.isNotEmpty) params['specialty']    = specialty;
+      if (language != null && language.isNotEmpty) params['language']       = language;
+      if (minExperience != null)                   params['min_experience'] = minExperience.toString();
+      if (minRating != null)                       params['min_rating']     = minRating.toString();
+      if (minEcoScore != null)                     params['min_eco_score']  = minEcoScore.toString();
+      params['verified_only'] = verifiedOnly.toString();
+      params['limit']  = limit.toString();
+      params['offset'] = offset.toString();
+
+      final uri = Uri.parse('$baseUrl$searchGuidesEndpoint')
+          .replace(queryParameters: params);
+
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data
+            .map((json) => SearchGuideResult.fromJson(json))
+            .toList();
+      } else {
+          final dynamic errorData = jsonDecode(response.body); 
+          if (errorData is Map<String, dynamic>) {
+             throw ApiError.fromJson(errorData);
+        }else {
+          throw ApiError(
+            errorCode: 'SEARCH_ERROR', 
+            message: 'Erreur serveur lors de la recherche: ${response.body}'
+          );
+        }  
+          }
+    
+    } catch (e) {
+      throw ApiError(errorCode: 'SEARCH_ERROR', message: 'Erreur de recherche: $e');
+    }
+  }
+
+  /// ✅ NOUVEAU : Recherche des guides avec leur trajet actif
+  ///
+  /// Retourne une liste de [SearchRouteResult] (guide + trajet actif).
+  /// Utilisé pour la carte interactive et la recherche par parcours.
+  static Future<List<SearchRouteResult>> searchGuidesWithRoutes({
+    String? query,
+    String? city,
+    String? specialty,
+    String? language,
+    int? minExperience,
+    double? minRating,
+    int? minEcoScore,
+    bool verifiedOnly = false,
+    String? routeQuery,              // Recherche dans les adresses du trajet
+    bool includeWithoutRoute = false, // Inclure les guides sans trajet
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final params = <String, String>{};
+
+      if (query != null && query.isNotEmpty)       params['q']              = query;
+      if (city != null && city.isNotEmpty)         params['city']           = city;
+      if (specialty != null && specialty.isNotEmpty) params['specialty']    = specialty;
+      if (language != null && language.isNotEmpty) params['language']       = language;
+      if (minExperience != null)                   params['min_experience'] = minExperience.toString();
+      if (minRating != null)                       params['min_rating']     = minRating.toString();
+      if (minEcoScore != null)                     params['min_eco_score']  = minEcoScore.toString();
+      if (routeQuery != null && routeQuery.isNotEmpty) params['route_query'] = routeQuery;
+      params['verified_only']         = verifiedOnly.toString();
+      params['include_without_route'] = includeWithoutRoute.toString();
+      params['limit']  = limit.toString();
+      params['offset'] = offset.toString();
+
+      final uri = Uri.parse('$baseUrl$searchGuidesWithRoutesEndpoint')
+          .replace(queryParameters: params);
+
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data
+            .map((json) => SearchRouteResult.fromJson(json))
+            .toList();
+      } else {
+        throw ApiError.fromJson(jsonDecode(response.body));
+      }
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      throw ApiError(errorCode: 'SEARCH_ROUTES_ERROR', message: 'Erreur de recherche: $e');
+    }
+  }
+
+  /// ✅ NOUVEAU : Récupère les valeurs disponibles pour les filtres de recherche
+  ///
+  /// Utilisé pour peupler les dropdowns (villes, spécialités, langues).
+  static Future<SearchFilters> getSearchFilters() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl$searchFiltersEndpoint'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return SearchFilters.fromJson(jsonDecode(response.body));
+      } else {
+        throw ApiError.fromJson(jsonDecode(response.body));
+      }
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      throw ApiError(errorCode: 'FILTERS_ERROR', message: 'Erreur lors de la récupération des filtres: $e');
+    }
+  }
 
   }
 

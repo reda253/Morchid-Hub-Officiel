@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../models/user_models.dart';
 import '../widgets/shimmer_widget.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -489,18 +490,18 @@ print('DEBUG URL IMAGE: $imageUrl');
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
+                            readOnly: true, // Make it act like a button
                             decoration: InputDecoration(
                               hintText: 'Rechercher une destination...',
                               hintStyle: TextStyle(color: textLight),
                               border: InputBorder.none,
                             ),
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Fonctionnalité à venir !'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+      // Navigate to SearchScreen instead of showing SnackBar
+                                Navigator.push(
+                                  context,
+                                   MaterialPageRoute(builder: (context) => const SearchScreen()),
+                                );
                             },
                           ),
                         ),

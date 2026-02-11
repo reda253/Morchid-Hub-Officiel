@@ -128,6 +128,9 @@ class GuideResponse(BaseModel):
     profile_photo_url: Optional[str] = None
     license_card_url: Optional[str] = None
     cine_card_url: Optional[str] = None
+    # ✅ NOUVEAU : champs ratings exposés dans GuideResponse
+    average_rating: float = 0.0
+    total_reviews: int = 0
     
     class Config:
         from_attributes = True
@@ -357,6 +360,97 @@ class SupportMessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ============================================
+# ✅ SCHEMAS DE RECHERCHE
+# ============================================
+
+class SearchGuideResponse(BaseModel):
+    """
+    Réponse de recherche de guide (endpoint /search/guides).
+    Retourne un objet 'user' et un objet 'guide' imbriqués.
+    """
+    user: UserResponse
+    guide: GuideResponse
+
+    class Config:
+        from_attributes = True
+
+
+class ActiveRouteInfo(BaseModel):
+    """
+    Informations condensées du trajet actif d'un guide.
+    Incluses dans SearchRouteResponse pour un affichage rapide sur la carte.
+    """
+    route_id: str
+    distance: float               # Distance totale en kilomètres
+    duration: float               # Durée estimée en minutes
+    start_address: Optional[str] = None
+    end_address: Optional[str] = None
+    coordinates_count: int = 0    # Nombre de points GPS (indicateur de complexité)
+
+
+class SearchRouteResponse(BaseModel):
+    """
+    ✅ NOUVEAU - Réponse de recherche guide + trajet actif (endpoint /search/guides-with-routes).
+
+    Structure plate (pas d'imbrication user/guide) pour un parsing Flutter simplifié.
+    Le champ 'active_route' est None si le guide n'a pas encore créé de trajet.
+
+    Exemple JSON retourné :
+    {
+        "user_id": "abc",
+        "guide_id": "xyz",
+        "full_name": "Hassan Amrani",
+        "profile_photo_url": "/uploads/profiles/hassan.jpg",
+        "languages": ["Arabe", "Français"],
+        "specialties": ["nature", "culture"],
+        "cities_covered": ["Marrakech"],
+        "years_of_experience": 8,
+        "bio": "Guide expérimenté...",
+        "is_verified": true,
+        "eco_score": 82,
+        "average_rating": 4.7,
+        "total_reviews": 34,
+        "active_route": {
+            "route_id": "r1",
+            "distance": 5.2,
+            "duration": 90.0,
+            "start_address": "Place Jemaa el-Fna",
+            "end_address": "Jardin Majorelle",
+            "coordinates_count": 47
+        }
+    }
+    """
+    # ─── Identité ───────────────────────────────
+    user_id: str
+    guide_id: str
+    full_name: str
+    profile_photo_url: Optional[str] = None
+
+    # ─── Informations professionnelles ──────────
+    languages: List[str]
+    specialties: List[str]
+    cities_covered: List[str]
+    years_of_experience: int
+    bio: str
+    is_verified: bool
+
+    # ─── Scores ─────────────────────────────────
+    eco_score: int
+    average_rating: float = 0.0
+    total_reviews: int = 0
+
+    # ─── Trajet actif ────────────────────────────
+    active_route: Optional[ActiveRouteInfo] = None  # None = pas de trajet encore
+
+    class Config:
+        from_attributes = True
+
+    @validator('profile_photo_url', pre=True)
+    def normalize_photo(cls, v):
+        if v and isinstance(v, str):
+            return v.replace('\\', '/')
+        return v
 
 
 class SuccessResponse(BaseModel):

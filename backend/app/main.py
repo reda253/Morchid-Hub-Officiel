@@ -17,6 +17,8 @@ import uuid
 import shutil
 from pathlib import Path
 from .admin import router as admin_router
+from .search import router as search_router  # ligne ~19
+
 
 
 from .config import settings
@@ -61,6 +63,7 @@ app = FastAPI(
     description=settings.DESCRIPTION,
 )
 
+app.include_router(search_router)            # ligne ~69
 # ============================================
 # ✅ AJOUT POUR ADMIN - LIGNE À AJOUTER
 # Inclure le router admin APRÈS la création de l'app

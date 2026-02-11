@@ -76,6 +76,10 @@ class Guide(Base):
     # Vérification et statut
     is_verified = Column(Boolean, default=False, nullable=False)  
     eco_score = Column(Integer, default=0, nullable=False)  # Score écologique (0-100)
+
+    # ✅ NOUVEAU : Classement et avis
+    average_rating = Column(Float, default=0.0, nullable=False)   # Note moyenne (0.0 - 5.0)
+    total_reviews = Column(Integer, default=0, nullable=False)     # Nombre total d'avis
     
     # Certifications
     has_official_license = Column(Boolean, default=False)
