@@ -107,6 +107,73 @@ CREATE TABLE guide_routes (
         ON DELETE CASCADE
 );
 
+ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
+
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'guides' 
+        AND column_name = 'rejection_reason'
+    ) THEN
+        ALTER TABLE guides 
+        ADD COLUMN rejection_reason TEXT NULL;
+        
+        COMMENT ON COLUMN guides.rejection_reason IS 'Motif du rejet du guide par l''admin';
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS support_messages (
+    -- Clé primaire
+    id VARCHAR PRIMARY KEY,
+    
+    -- Clé étrangère vers l'utilisateur
+    user_id VARCHAR NOT NULL,
+    
+    -- Contenu du message
+    subject VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    
+    -- Statut
+    is_resolved BOOLEAN DEFAULT FALSE NOT NULL,
+    
+    -- Métadonnées
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Contrainte de clé étrangère
+    CONSTRAINT fk_support_user
+        FOREIGN KEY(user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+
+-- Index sur user_id pour les jointures rapides
+CREATE INDEX IF NOT EXISTS idx_support_messages_user_id 
+ON support_messages(user_id);
+
+-- Index sur is_resolved pour filtrer les messages non résolus
+CREATE INDEX IF NOT EXISTS idx_support_messages_is_resolved 
+ON support_messages(is_resolved);
+
+-- Index sur created_at pour trier par date
+CREATE INDEX IF NOT EXISTS idx_support_messages_created_at 
+ON support_messages(created_at DESC);
+
+-- ============================================
+-- 4. AJOUTER DES COMMENTAIRES
+-- ============================================
+
+COMMENT ON TABLE support_messages IS 'Messages de support technique des utilisateurs';
+COMMENT ON COLUMN support_messages.subject IS 'Sujet du message (max 200 caractères)';
+COMMENT ON COLUMN support_messages.message IS 'Contenu détaillé du message';
+COMMENT ON COLUMN support_messages.is_resolved IS 'TRUE = résolu, FALSE = en attente';
+COMMENT ON COLUMN support_messages.resolved_at IS 'Date et heure de résolution';
+
+
 
 
 
