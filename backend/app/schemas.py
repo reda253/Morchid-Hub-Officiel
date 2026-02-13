@@ -453,6 +453,105 @@ class SearchRouteResponse(BaseModel):
         return v
 
 
+
+
+
+# ============================================
+# ✅ SCHEMAS AVIS (REVIEWS)  ← NOUVEAUX
+# ============================================
+
+class ReviewCreate(BaseModel):
+    """
+    Corps de la requête POST /api/v1/reviews.
+    Envoyé par un touriste depuis Flutter.
+
+    Champs :
+    - guide_id  : ID du guide évalué (obligatoire)
+    - route_id  : ID du trajet concerné (optionnel — None = avis sur le guide)
+    - rating    : Note entière de 1 à 5
+    - comment   : Commentaire libre, max 1 000 caractères (optionnel)
+    """
+    guide_id: str  = Field(..., description="ID du guide à évaluer")
+    route_id: Optional[str] = Field(
+        None,
+        description="ID du trajet concerné (optionnel)"
+    )
+    rating: int = Field(
+        ...,
+        ge=1,
+        le=5,
+        description="Note de 1 (très mauvais) à 5 (excellent)"
+    )
+    comment: Optional[str] = Field(
+        None,
+        max_length=1000,
+        description="Commentaire libre (optionnel, max 1 000 caractères)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "guide_id": "abc-123",
+                "route_id": None,
+                "rating": 5,
+                "comment": "Guide exceptionnel, très professionnel et passionné !"
+            }
+        }
+
+
+class ReviewResponse(BaseModel):
+    """
+    Corps de la réponse après création d'un avis ou lors du listing.
+
+    Enrichi côté backend avec :
+    - tourist_name : nom lisible du touriste (depuis la table users)
+    """
+    id:           str
+    guide_id:     str
+    tourist_id:   str
+    tourist_name: str                  # Enrichi depuis User.full_name
+    route_id:     Optional[str] = None
+    rating:       int                  # 1–5
+    comment:      Optional[str] = None
+    created_at:   datetime
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id":           "rev-456",
+                "guide_id":     "abc-123",
+                "tourist_id":   "usr-789",
+                "tourist_name": "Youssef El Amrani",
+                "route_id":     None,
+                "rating":       4,
+                "comment":      "Très bonne expérience, trajet bien organisé.",
+                "created_at":   "2025-06-15T14:30:00Z"
+            }
+        }
+
+
+class ReviewListResponse(BaseModel):
+    """
+    Réponse de GET /api/v1/guides/{guide_id}/reviews.
+    Inclut les stats résumées du guide + la liste paginée des avis.
+    """
+    guide_id:       str
+    average_rating: float          # Arrondi à 1 décimale (ex: 4.7)
+    total_reviews:  int
+    reviews:        List[ReviewResponse]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "guide_id":       "abc-123",
+                "average_rating": 4.7,
+                "total_reviews":  34,
+                "reviews":        []
+            }
+        }
+
+
 class SuccessResponse(BaseModel):
     """Réponse de succès générique"""
     status: str = "success"

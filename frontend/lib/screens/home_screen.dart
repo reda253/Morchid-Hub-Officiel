@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../models/user_models.dart';
 import '../widgets/shimmer_widget.dart';
 import 'search_screen.dart';
+import 'review_screen.dart'; // Import the new review screen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color warningColor = Color(0xFFFF9800);
   static const Color errorColor = Color(0xFFE63946);
   static const Color successColor = Color(0xFF2D6A4F); // Using primary color as success for consistency, or a green
+  static const Color starColor       = Color(0xFFFFC107);
 
   @override
   void initState() {
@@ -142,6 +144,38 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
   }
+  // ============================================
+  // ⭐ OUVRIR REVIEW SCREEN
+  // ============================================
+  /// Ouvre la ReviewScreen pour [guideId].
+  /// Si l'avis est soumis avec succès (retour = true), rafraîchit le profil
+  /// pour mettre à jour les stats affichées.
+  Future<void> _openReviewScreen({
+    required String guideId,
+    required String guideName,
+    String? guidePhotoUrl,
+    String? routeId,
+    String? routeLabel,
+  }) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReviewScreen(
+          guideId:       guideId,
+          guideName:     guideName,
+          guidePhotoUrl: guidePhotoUrl,
+          routeId:       routeId,
+          routeLabel:    routeLabel,
+        ),
+      ),
+    );
+
+    // Si l'avis a été soumis, rafraîchir pour mettre à jour les compteurs
+    if (result == true && mounted) {
+      _loadUserProfile();
+    }
+  }
+
 
   // ============================================
   // 🖼️ HELPER POUR AFFICHER L'AVATAR AVEC PHOTO
@@ -627,6 +661,8 @@ print('DEBUG URL IMAGE: $imageUrl');
                                     color: textDark,
                                   ),
                                 ),
+
+                                
                                 const SizedBox(height: 4),
                                 Text(
                                   'Découvrez l\'itinéraire préparé',
@@ -647,9 +683,124 @@ print('DEBUG URL IMAGE: $imageUrl');
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // ── ✅ SECTION LAISSER UN AVIS ──────────────────────────
+                  _buildLeaveReviewSection(),
                   const SizedBox(height: 40),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // ── Section "Laisser un avis" dans le dashboard touriste ─────────────────
+  Widget _buildLeaveReviewSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            primaryColor.withOpacity(0.07),
+            primaryColor.withOpacity(0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryColor.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Titre section
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.rate_review_rounded,
+                    color: primaryColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Votre avis compte !',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textDark,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Notez un guide ou un trajet que vous avez vécu',
+                      style: TextStyle(fontSize: 13, color: textLight),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Bouton principal — noter un guide
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Naviguer vers la recherche pour choisir le guide à noter
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SearchScreen()),
+                );
+              },
+              icon: const Icon(Icons.star_rounded, size: 18),
+              label: const Text(
+                'Rechercher un guide à noter',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Bouton secondaire — noter un guide exemple (accès rapide)
+          OutlinedButton.icon(
+            onPressed: () => _openReviewScreen(
+              // Exemple de guide "récent" — à remplacer par des vraies données
+              guideId:   'example-guide-id',
+              guideName: 'Votre dernier guide',
+            ),
+            icon: const Icon(Icons.history, size: 18, color: primaryColor),
+            label: const Text(
+              'Votre dernier guide',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: primaryColor,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 46),
+              side: const BorderSide(color: primaryColor, width: 1.2),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -769,7 +920,11 @@ print('DEBUG URL IMAGE: $imageUrl');
                 ),
               ),
             ),
-
+            // ── ✅ Bandeau note du guide ───────────────────────────────────────
+          if (guide != null && guide.totalReviews > 0)
+            SliverToBoxAdapter(
+              child: _buildGuideRatingBanner(guide),
+            ),
           // Statistiques
           SliverPadding(
             padding: const EdgeInsets.all(24),
@@ -793,12 +948,16 @@ print('DEBUG URL IMAGE: $imageUrl');
                   value: guide?.ecoScore.toString() ?? '0',
                   color: Colors.green,
                 ),
+                // ✅ Stat card avec vraie note depuis GuideProfile
                 _buildStatCard(
                   icon: Icons.star,
-                  title: 'Avis',
-                  value: stats['total_reviews']?.toString() ?? '0',
-                  color: Colors.amber,
+                  title: 'Note moyenne',
+                  value: guide != null && guide.totalReviews > 0
+                      ? guide.averageRating.toStringAsFixed(1)
+                      : '—',
+                  color: starColor,
                 ),
+                
                 _buildStatCard(
                   icon: Icons.attach_money,
                   title: 'Revenus',
@@ -866,6 +1025,24 @@ print('DEBUG URL IMAGE: $imageUrl');
                       }
                     },
                   ),
+                  // ✅ Bouton voir ses avis (pour le guide)
+                  if (guide != null) ...[
+                    const SizedBox(height: 16),
+                    _buildActionButton(
+                      icon: Icons.reviews_rounded,
+                      title: 'Voir mes avis',
+                      subtitle: guide.totalReviews > 0
+                          ? '${guide.totalReviews} avis · ${guide.averageRating.toStringAsFixed(1)} ★'
+                          : 'Aucun avis reçu pour l\'instant',
+                      enabled: true,
+                      onTap: () => _openReviewScreen(
+                        guideId:       guide.id,
+                        guideName:     user.fullName,
+                        guidePhotoUrl: guide.profilePhotoUrl,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -874,7 +1051,58 @@ print('DEBUG URL IMAGE: $imageUrl');
       ),
     );
   }
-
+  // ── Bandeau note pour le guide ────────────────────────────────────────────
+  Widget _buildGuideRatingBanner(GuideProfile guide) {
+    return GestureDetector(
+      onTap: () => _openReviewScreen(
+        guideId:   guide.id,
+        guideName: _userProfile!.user.fullName,
+        guidePhotoUrl: guide.profilePhotoUrl,
+      ),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: starColor.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.star_rounded, color: starColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Votre note : ${guide.averageRating.toStringAsFixed(1)} / 5',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: textDark,
+                    ),
+                  ),
+                  Text(
+                    'Basée sur ${guide.totalReviews} avis — Appuyez pour voir',
+                    style: const TextStyle(color: textLight, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: textLight),
+          ],
+        ),
+      ),
+    );
+  }
   // ============================================
   // 📅 PAGE RÉSERVATIONS (TOURISTE)
   // ============================================
@@ -1104,9 +1332,75 @@ print('DEBUG URL IMAGE: $imageUrl');
                     'Langues',
                     guide.languages.join(', '),
                   ),
+                  // ✅ Note moyenne dans le profil
+                  _buildInfoRow(
+                    Icons.star_rounded,
+                    'Note moyenne',
+                    guide.totalReviews > 0
+                        ? '${guide.averageRating.toStringAsFixed(1)} / 5 (${guide.totalReviews} avis)'
+                        : 'Aucun avis',
+                    valueColor: guide.totalReviews > 0 ? starColor : textLight,
+                  ),
                 ],
               ),
+
+              // ✅ Bouton voir les avis depuis le profil (touriste ET guide)
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openReviewScreen(
+                    guideId:       guide.id,
+                    guideName:     user.fullName,
+                    guidePhotoUrl: guide.profilePhotoUrl,
+                  ),
+                  icon: const Icon(Icons.reviews_rounded, color: primaryColor),
+                  label: Text(
+                    guide.totalReviews > 0
+                        ? 'Voir les ${guide.totalReviews} avis'
+                        : 'Aucun avis',
+                    style: const TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: primaryColor, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
             ],
+
+            // ✅ Bouton noter un guide (touriste uniquement, dans son propre profil)
+            if (user.role == 'tourist') ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  ),
+                  icon: const Icon(Icons.star_rounded),
+                  label: const Text(
+                    'Laisser un avis sur un guide',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+
+            
 
             const SizedBox(height: 32),
 
@@ -1128,10 +1422,12 @@ print('DEBUG URL IMAGE: $imageUrl');
               ),
             ),
             const SizedBox(height: 40),
+          
           ],
         ),
       ),
-    );
+      );
+    
   }
 
   // ============================================

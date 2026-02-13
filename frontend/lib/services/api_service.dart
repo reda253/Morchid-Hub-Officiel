@@ -43,8 +43,44 @@ class ApiService {
   static const String searchGuidesWithRoutesEndpoint = '/api/v1/search/guides-with-routes';
   static const String searchFiltersEndpoint          = '/api/v1/search/filters';
 
+  // ── ✅ Endpoints Avis ─────────────────────────────────────────────────────
+  static const String _reviewsBase = '/api/v1/reviews';
+  static String _guideReviewsEndpoint(String guideId) =>
+      '/api/v1/guides/$guideId/reviews';
+
   // Timeout des requêtes
   static const Duration timeout = Duration(seconds: 60);
+
+  /// Headers sans token (endpoints publics)
+  static Map<String, String> _publicHeaders() =>
+      {'Content-Type': 'application/json', 'Accept': 'application/json'};
+
+ 
+
+   static Future<http.Response> _authenticatedPost(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
+    return http
+        .post(
+          Uri.parse('$baseUrl$endpoint'),
+          headers: await _getAuthHeaders(),
+          body:    jsonEncode(body),
+        )
+        .timeout(timeout);
+  }
+   /// DELETE authentifié
+  static Future<http.Response> _authenticatedDelete(String endpoint) async {
+    return http
+        .delete(
+          Uri.parse('$baseUrl$endpoint'),
+          headers: await _getAuthHeaders(),
+        )
+        .timeout(timeout);
+  }
+
+
+  
 
   // ============================================
   // 📝 INSCRIPTION (REGISTER)
@@ -801,6 +837,122 @@ static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
       rethrow;
     } catch (e) {
       throw ApiError(errorCode: 'FILTERS_ERROR', message: 'Erreur lors de la récupération des filtres: $e');
+    }
+  }
+
+  // ============================================
+  // ✅ AVIS (REVIEWS)
+  // ============================================
+
+  /// Soumet un avis d'un touriste sur un guide.
+  ///
+  /// [reviewData] doit contenir :
+  /// ```json
+  /// { "guide_id": "abc", "rating": 5, "comment": "...", "route_id": null }
+  /// ```
+  /// Utilisez [ReviewCreateRequest.toJson()] pour construire ce map.
+  ///
+  /// Retourne le [Review] créé, enrichi avec le nom du touriste.
+  ///
+  /// Erreurs possibles :
+  /// - 403 FORBIDDEN_ROLE         : l'utilisateur n'est pas un touriste
+  /// - 404 GUIDE_NOT_FOUND        : guide inexistant ou non approuvé
+  /// - 400 SELF_REVIEW            : un guide essaie de se noter lui-même
+  /// - 409 REVIEW_ALREADY_EXISTS  : avis déjà posté pour ce guide
+  /// - 404 ROUTE_NOT_FOUND        : route_id invalide
+  static Future<Review> submitReview(Map<String, dynamic> reviewData) async {
+    try {
+      final response = await _authenticatedPost(_reviewsBase, reviewData);
+
+      if (response.statusCode == 201) {
+        return Review.fromJson(jsonDecode(response.body));
+      }
+
+      // Retransmettre l'erreur métier du backend telle quelle
+      final body = jsonDecode(response.body);
+      throw ApiError(
+        errorCode: body['error_code'] ?? 'REVIEW_ERROR',
+        message:   body['message']   ?? 'Erreur lors de la soumission de l\'avis',
+      );
+    } on ApiError {
+      rethrow;
+    } on http.ClientException {
+      throw ApiError(
+        errorCode: 'NETWORK_ERROR',
+        message:   'Impossible de se connecter au serveur.',
+      );
+    } catch (e) {
+      throw ApiError(
+        errorCode: 'UNEXPECTED_ERROR',
+        message:   'Erreur inattendue: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Récupère la liste paginée des avis d'un guide.
+  ///
+  /// Endpoint public — aucun token requis.
+  ///
+  /// Retourne un [ReviewListResponse] contenant :
+  /// - `averageRating` : note moyenne arrondie à 1 décimale (ex : 4.7)
+  /// - `totalReviews`  : nombre total d'avis
+  /// - `reviews`       : liste paginée, du plus récent au plus ancien
+  ///
+  /// Usage :
+  /// ```dart
+  /// final result = await ApiService.fetchGuideReviews(guideId, limit: 10);
+  /// print(result.summaryDisplay); // "4.7 ★ (34 avis)"
+  /// ```
+  static Future<ReviewListResponse> fetchGuideReviews(
+    String guideId, {
+    int limit  = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl${_guideReviewsEndpoint(guideId)}')
+          .replace(queryParameters: {
+            'limit':  '$limit',
+            'offset': '$offset',
+          });
+
+      final response = await http
+          .get(uri, headers: _publicHeaders())
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return ReviewListResponse.fromJson(jsonDecode(response.body));
+      }
+      if (response.statusCode == 404) {
+        throw ApiError(errorCode: 'GUIDE_NOT_FOUND', message: 'Guide introuvable');
+      }
+      throw ApiError.fromJson(jsonDecode(response.body));
+    } on ApiError {
+      rethrow;
+    } on http.ClientException {
+      throw ApiError(
+        errorCode: 'NETWORK_ERROR',
+        message:   'Impossible de se connecter au serveur.',
+      );
+    } catch (e) {
+      throw ApiError(
+        errorCode: 'FETCH_REVIEWS_ERROR',
+        message:   'Erreur inattendue: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Supprime l'avis [reviewId] (auteur uniquement, ou admin).
+  ///
+  /// Recalcule automatiquement les stats du guide côté backend.
+  static Future<SuccessResponse> deleteReview(String reviewId) async {
+    try {
+      final response = await _authenticatedDelete('$_reviewsBase/$reviewId');
+      if (response.statusCode == 200) return SuccessResponse.fromJson(jsonDecode(response.body));
+      throw ApiError.fromJson(jsonDecode(response.body));
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      throw ApiError(errorCode: 'DELETE_REVIEW_ERROR', message: e.toString());
     }
   }
 

@@ -160,6 +160,10 @@ class GuideProfile {
   final String? licenseCardUrl;
   final String? cineCardUrl;
 
+   // ✅ Classement — synchronisés depuis le backend à chaque avis
+  final double averageRating;  // 0.0 – 5.0, arrondi 1 décimale
+  final int totalReviews;      // Nombre absolu d'avis
+
   GuideProfile({
     required this.id,
     required this.userId,
@@ -174,6 +178,8 @@ class GuideProfile {
     this.profilePhotoUrl,      // ✅ Optionnel
     this.licenseCardUrl,        // ✅ Optionnel
     this.cineCardUrl,           // ✅ Optionnel
+    this.averageRating = 0.0,
+    this.totalReviews  = 0,
   });
 
   factory GuideProfile.fromJson(Map<String, dynamic> json) {
@@ -192,7 +198,144 @@ class GuideProfile {
       profilePhotoUrl: json['profile_photo_url'],
       licenseCardUrl: json['license_card_url'],
       cineCardUrl: json['cine_card_url'],
+      averageRating:       (json['average_rating'] ?? 0.0).toDouble(),
+      totalReviews:        json['total_reviews']   ?? 0,
     );
+  }
+
+
+// ── Helpers d'affichage ──────────────────────────────────────────────────
+
+  /// "4.7 ★" ou "Nouveau guide" si aucun avis
+  String get ratingDisplay =>
+      totalReviews == 0 ? 'Nouveau guide' : '${averageRating.toStringAsFixed(1)} ★';
+
+  /// "4.7 ★ (34 avis)" ou "Aucun avis"
+  String get ratingWithCount {
+    if (totalReviews == 0) return 'Aucun avis';
+    final label = totalReviews > 1 ? 'avis' : 'avis';
+    return '${averageRating.toStringAsFixed(1)} ★ ($totalReviews $label)';
+  }
+
+  /// Renvoie un entier arrondi de la note pour afficher des étoiles pleines
+  int get roundedRating => averageRating.round().clamp(0, 5);
+}
+
+// ============================================
+// ✅ MODELS POUR LES AVIS (REVIEWS)
+// ============================================
+
+/// Corps de la requête POST /api/v1/reviews
+class ReviewCreateRequest {
+  final String guideId;
+  final String? routeId;  // Optionnel — avis sur un trajet spécifique
+  final int rating;       // 1 à 5 (validé ici et côté backend)
+  final String? comment;  // Texte libre, optionnel
+
+  ReviewCreateRequest({
+    required this.guideId,
+    this.routeId,
+    required this.rating,
+    this.comment,
+  }) : assert(rating >= 1 && rating <= 5, 'La note doit être entre 1 et 5');
+
+  Map<String, dynamic> toJson() => {
+        'guide_id': guideId,
+        if (routeId != null && routeId!.isNotEmpty) 'route_id': routeId,
+        'rating':   rating,
+        if (comment != null && comment!.isNotEmpty) 'comment': comment,
+      };
+
+  String toJsonString() => jsonEncode(toJson());
+}
+
+/// Avis retourné par le backend (GET ou POST /reviews)
+class Review {
+  final String id;
+  final String guideId;
+  final String touristId;
+  final String touristName;   // Enrichi par le backend depuis users.full_name
+  final String? routeId;
+  final int rating;           // 1–5
+  final String? comment;
+  final DateTime createdAt;
+
+  Review({
+    required this.id,
+    required this.guideId,
+    required this.touristId,
+    required this.touristName,
+    this.routeId,
+    required this.rating,
+    this.comment,
+    required this.createdAt,
+  });
+
+  factory Review.fromJson(Map<String, dynamic> json) => Review(
+        id:           json['id'],
+        guideId:      json['guide_id'],
+        touristId:    json['tourist_id'],
+        touristName:  json['tourist_name'] ?? 'Touriste anonyme',
+        routeId:      json['route_id'],
+        rating:       json['rating'],
+        comment:      json['comment'],
+        createdAt:    json['created_at'] != null
+            ? DateTime.parse(json['created_at'])
+            : DateTime.now(),
+      );
+
+  // ── Helpers d'affichage ──────────────────────────────────────────────────
+
+  /// "★★★★☆"  (étoiles Unicode, toujours 5 caractères)
+  String get starsDisplay => '★' * rating + '☆' * (5 - rating);
+
+  /// Date relative : "Il y a 3 jours", "Hier", "Il y a 2 semaines"…
+  String get timeAgo {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes <  1)  return 'À l\'instant';
+    if (diff.inMinutes < 60)  return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours   <  2)  return 'Il y a 1h';
+    if (diff.inHours   < 24)  return 'Il y a ${diff.inHours}h';
+    if (diff.inDays    ==  1) return 'Hier';
+    if (diff.inDays    <  7)  return 'Il y a ${diff.inDays} jours';
+    if (diff.inDays    < 30)  return 'Il y a ${diff.inDays ~/ 7} semaine(s)';
+    return '${createdAt.day.toString().padLeft(2,'0')}/'
+           '${createdAt.month.toString().padLeft(2,'0')}/'
+           '${createdAt.year}';
+  }
+
+  /// True si l'avis porte sur un trajet précis
+  bool get hasRoute => routeId != null && routeId!.isNotEmpty;
+}
+
+/// Réponse de GET /api/v1/guides/{guide_id}/reviews
+class ReviewListResponse {
+  final String guideId;
+  final double averageRating;   // Arrondi 1 décimale (ex: 4.7)
+  final int    totalReviews;
+  final List<Review> reviews;
+
+  ReviewListResponse({
+    required this.guideId,
+    required this.averageRating,
+    required this.totalReviews,
+    required this.reviews,
+  });
+
+  factory ReviewListResponse.fromJson(Map<String, dynamic> json) =>
+      ReviewListResponse(
+        guideId:       json['guide_id'],
+        averageRating: (json['average_rating'] ?? 0.0).toDouble(),
+        totalReviews:  json['total_reviews']   ?? 0,
+        reviews: (json['reviews'] as List<dynamic>? ?? [])
+            .map((r) => Review.fromJson(r as Map<String, dynamic>))
+            .toList(),
+      );
+
+  /// "4.7 ★ (34 avis)" ou "Aucun avis"
+  String get summaryDisplay {
+    if (totalReviews == 0) return 'Aucun avis';
+    return '${averageRating.toStringAsFixed(1)} ★ ($totalReviews avis)';
   }
 }
 

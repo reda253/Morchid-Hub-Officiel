@@ -18,6 +18,8 @@ import shutil
 from pathlib import Path
 from .admin import router as admin_router
 from .search import router as search_router  # ligne ~19
+from .reviews import router as reviews_router
+
 
 
 
@@ -69,6 +71,9 @@ app.include_router(search_router)            # ligne ~69
 # Inclure le router admin APRÈS la création de l'app
 # ============================================
 app.include_router(admin_router)
+
+app.include_router(reviews_router)
+
 
 # ============================================
 # UPLOADS DIRECTORY CONFIGURATION

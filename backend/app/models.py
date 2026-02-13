@@ -49,6 +49,8 @@ class User(Base):
     # Relation avec la table guides (si role = 'guide')
     guide_profile = relationship("Guide", back_populates="user", uselist=False, cascade="all, delete-orphan")
     support_messages = relationship("SupportMessage", back_populates="user", cascade="all, delete-orphan")
+    reviews_given    = relationship("Review",         back_populates="tourist",        cascade="all, delete-orphan",
+                                    foreign_keys="Review.tourist_id")
 
     
     def __repr__(self):
@@ -102,9 +104,84 @@ class Guide(Base):
     # Relation inverse avec User
     user = relationship("User", back_populates="guide_profile")
     routes = relationship("GuideRoute", back_populates="guide", cascade="all, delete-orphan")
-    
+    reviews = relationship("Review",     back_populates="guide",   cascade="all, delete-orphan")
+     # ------------------------------------------------------------------
+    # Méthode utilitaire appelée dans reviews.py après chaque INSERT/DELETE
+    # ------------------------------------------------------------------
+    def refresh_rating_stats(self, db_session) -> None:
+        """
+        Recalcule average_rating et total_reviews en interrogeant directement
+        la BDD — thread-safe même sous charge concurrente.
+
+        Formule : AVG(rating) arrondi à 1 décimale via round() Python.
+        Exemple  : (5 + 4 + 4 + 5 + 4) / 5 = 4.4 → average_rating = 4.4
+        """
+        from sqlalchemy import func as sqlfunc
+
+        row = (
+            db_session.query(
+                sqlfunc.count(Review.id).label("cnt"),
+                sqlfunc.avg(Review.rating).label("avg"),
+            )
+            .filter(Review.guide_id == self.id)
+            .one()
+        )
+
+        self.total_reviews  = row.cnt or 0
+        # round() garantit une précision à 1 décimale (ex: 4.666… → 4.7)
+        self.average_rating = round(float(row.avg), 1) if row.avg else 0.0
+
     def __repr__(self):
-        return f"<Guide(id={self.id}, user_id={self.user_id}, is_verified={self.is_verified})>"
+        return f"<Guide(id={self.id}, rating={self.average_rating}/5, reviews={self.total_reviews})>"
+
+
+# ============================================
+# TABLE REVIEWS  ← NOUVELLE TABLE
+# ============================================
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    # ── Clé primaire ──────────────────────────────────────────────────────
+    id          = Column(String, primary_key=True, default=generate_uuid, index=True)
+
+    # ── Clés étrangères ───────────────────────────────────────────────────
+    guide_id    = Column(
+        String,
+        ForeignKey("guides.id",      ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tourist_id  = Column(
+        String,
+        ForeignKey("users.id",       ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    route_id    = Column(
+        String,
+        ForeignKey("guide_routes.id", ondelete="SET NULL"),
+        nullable=True,   # Optionnel : avis sur le guide sans trajet précis
+        index=True,
+    )
+
+    # ── Contenu ───────────────────────────────────────────────────────────
+    rating      = Column(Integer, nullable=False)   # 1–5 (contrainte CHECK en SQL, validé en Pydantic)
+    comment     = Column(Text, nullable=True)        # Texte libre, optionnel
+
+    # ── Métadonnées ───────────────────────────────────────────────────────
+    created_at  = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # ── Relations ─────────────────────────────────────────────────────────
+    guide   = relationship("Guide",      back_populates="reviews")
+    tourist = relationship("User",       back_populates="reviews_given", foreign_keys=[tourist_id])
+    route   = relationship("GuideRoute", foreign_keys=[route_id])   # lecture seule, pas de back_populates
+
+    def __repr__(self):
+        return f"<Review(id={self.id}, guide={self.guide_id}, tourist={self.tourist_id}, rating={self.rating}/5)>"
+
+
+    
     
 
 
