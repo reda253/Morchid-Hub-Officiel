@@ -175,6 +175,53 @@ COMMENT ON COLUMN support_messages.resolved_at IS 'Date et heure de résolution'
 
 
 
+-- 1. Ajouter average_rating
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'guides' AND column_name = 'average_rating'
+    ) THEN
+        ALTER TABLE guides ADD COLUMN average_rating FLOAT DEFAULT 0.0 NOT NULL;
+        COMMENT ON COLUMN guides.average_rating IS 'Note moyenne des avis (0.0 - 5.0)';
+        RAISE NOTICE '✅ Colonne average_rating ajoutée';
+    ELSE
+        RAISE NOTICE 'ℹ️  Colonne average_rating existe déjà';
+    END IF;
+END $$;
+
+-- 2. Ajouter total_reviews
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'guides' AND column_name = 'total_reviews'
+    ) THEN
+        ALTER TABLE guides ADD COLUMN total_reviews INTEGER DEFAULT 0 NOT NULL;
+        COMMENT ON COLUMN guides.total_reviews IS 'Nombre total d''avis reçus';
+        RAISE NOTICE '✅ Colonne total_reviews ajoutée';
+    ELSE
+        RAISE NOTICE 'ℹ️  Colonne total_reviews existe déjà';
+    END IF;
+END $$;
+
+-- 3. Index sur average_rating pour tris rapides
+CREATE INDEX IF NOT EXISTS idx_guides_average_rating
+ON guides(average_rating DESC);
+
+-- 4. Index sur eco_score pour filtres
+CREATE INDEX IF NOT EXISTS idx_guides_eco_score
+ON guides(eco_score);
+
+-- 5. Index texte sur start_address et end_address pour recherche par trajet
+CREATE INDEX IF NOT EXISTS idx_guide_routes_start_address
+ON guide_routes(start_address);
+
+CREATE INDEX IF NOT EXISTS idx_guide_routes_end_address
+ON guide_routes(end_address);
+
+
+
 
 
 
