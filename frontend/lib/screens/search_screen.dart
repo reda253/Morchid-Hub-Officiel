@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/search_models.dart';
 import '../utils/app_colors.dart';
+import 'review_screen.dart';
+import '../services/storage_service.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -138,6 +140,29 @@ class _SearchScreenState extends State<SearchScreen> {
             title: Text(res.fullName),
             subtitle: Text(res.guide.specialties.join(', ')),
             trailing: Text('${res.guide.averageRating} ★'),
+            // ✅ ADD THIS ONTAP TO OPEN THE REVIEW SCREEN
+          onTap: () async {
+            await StorageService.saveLastGuide({
+              'id': res.guide.id,
+              'name': res.fullName,
+              'photo': res.guide.profilePhotoUrl,
+            });
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReviewScreen(
+                  guideId: res.guide.id, // Pass the real guide ID
+                  guideName: res.fullName,
+                  guidePhotoUrl: res.guide.profilePhotoUrl,
+                ),
+              ),
+            );
+
+            // If a review was submitted, refresh the search to see the new rating
+            if (result == true) {
+              _performSearch();
+            }
+          },
           ),
         );
       },

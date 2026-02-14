@@ -9,7 +9,7 @@ class StorageService {
   static const String _keyAccessToken = 'access_token';
   static const String _keyUserData = 'user_data';
   static const String _keyIsLoggedIn = 'is_logged_in';
-
+  static const String _keyLastGuide = 'last_guide_data';
   // ============================================
   // 💾 SAUVEGARDER LES DONNÉES DE CONNEXION
   // ============================================
@@ -84,5 +84,14 @@ class StorageService {
   /// Déconnexion complète
   static Future<void> logout() async {
     await clearLoginData();
+  }
+  static Future<void> saveLastGuide(Map<String, dynamic> guideData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastGuide, jsonEncode(guideData));
+  }
+  static Future<Map<String, dynamic>?> getLastGuide() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_keyLastGuide);
+    return data != null ? jsonDecode(data) : null;
   }
 }

@@ -98,7 +98,7 @@ async def create_review(
         db.query(Guide)
         .filter(
             Guide.id == review_data.guide_id,
-            Guide.approval_status == "approved",
+            Guide.is_verified == True,
         )
         .first()
     )

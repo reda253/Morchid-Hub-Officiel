@@ -15,9 +15,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   UserProfileResponse? _userProfile;
+  Map<String, dynamic>? _lastGuide; // ✅ Variable pour stocker le dernier guide
   bool _isLoading = true;
   String? _error;
   int _currentIndex = 0;
+  Map<String, dynamic>? _lastGuideData; // Add this line
+
 
 
   // Couleurs du design system
@@ -31,10 +34,23 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color successColor = Color(0xFF2D6A4F); // Using primary color as success for consistency, or a green
   static const Color starColor       = Color(0xFFFFC107);
 
+
+
+
+
+
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadLastGuide(); // ✅ Charger le dernier guide au démarrage
+  }
+
+  Future<void> _loadLastGuide() async {
+    final guide = await StorageService.getLastGuide();
+    if (mounted && guide != null) {
+      setState(() => _lastGuide = guide);
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -45,8 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final profile = await ApiService.getUserProfile();
+      final lastGuide = await StorageService.getLastGuide(); // Add this
       setState(() {
         _userProfile = profile;
+        _lastGuideData = lastGuide;
         _isLoading = false;
       });
     } catch (e) {
@@ -173,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Si l'avis a été soumis, rafraîchir pour mettre à jour les compteurs
     if (result == true && mounted) {
       _loadUserProfile();
+      _loadLastGuide(); // ✅ Rafraîchir aussi le bouton "Dernier guide"
     }
   }
 
@@ -781,28 +800,31 @@ print('DEBUG URL IMAGE: $imageUrl');
           const SizedBox(height: 10),
 
           // Bouton secondaire — noter un guide exemple (accès rapide)
-          OutlinedButton.icon(
-            onPressed: () => _openReviewScreen(
-              // Exemple de guide "récent" — à remplacer par des vraies données
-              guideId:   'example-guide-id',
-              guideName: 'Votre dernier guide',
-            ),
-            icon: const Icon(Icons.history, size: 18, color: primaryColor),
-            label: const Text(
-              'Votre dernier guide',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-                color: primaryColor,
+          if (_lastGuide != null) ...[ // ✅ Afficher seulement si on a un historique
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => _openReviewScreen(
+                guideId:   _lastGuide!['id'],
+                guideName: _lastGuide!['name'],
+                guidePhotoUrl: _lastGuide!['photo'],
+              ),
+              icon: const Icon(Icons.history, size: 18, color: primaryColor),
+              label: Text(
+                'Noter à nouveau ${_lastGuide!['name']}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: primaryColor,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 46),
+                side: const BorderSide(color: primaryColor, width: 1.2),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 46),
-              side: const BorderSide(color: primaryColor, width: 1.2),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
+          ],
         ],
       ),
     );

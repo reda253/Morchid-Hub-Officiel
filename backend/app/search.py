@@ -104,7 +104,7 @@ async def search_guides(
         db.query(User, Guide)
         .join(Guide, User.id == Guide.user_id)
         .filter(User.role == "guide")
-        .filter(Guide.is_verified == True)
+        .filter(Guide.approval_status == "approved") # ✅ CORRECTIF: Uniquement les guides approuvés
         .filter(User.is_active == True)
     )
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user_models.dart';
+import '../services/storage_service.dart';
 
 class ReviewScreen extends StatefulWidget {
   final String guideId;
@@ -107,6 +108,12 @@ class _ReviewScreenState extends State<ReviewScreen>
       );
 
       await ApiService.submitReview(request.toJson());
+      // Save this guide as the last guide reviewed
+      await StorageService.saveLastGuide({
+        'id': widget.guideId,
+        'name': widget.guideName,
+        'photo': widget.guidePhotoUrl,
+      });
 
       if (mounted) {
         _showSnackBar('Merci ! Votre avis a été enregistré.', isError: false);
@@ -120,6 +127,7 @@ class _ReviewScreenState extends State<ReviewScreen>
           _hoverRating = 0;
         });
         _commentController.clear();
+
         // Remonter true pour indiquer au parent que les stats ont changé
         Navigator.pop(context, true);
       }
