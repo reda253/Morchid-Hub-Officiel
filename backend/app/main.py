@@ -1088,6 +1088,11 @@ async def save_guide_route(
     # 5. CRÉER LE NOUVEAU TRAJET
     # ============================================
     try:
+        # Sérialiser les checkpoints en liste de dicts (JSON-compatible)
+        checkpoints_data = []
+        if route_data.checkpoints:
+            checkpoints_data = [cp.dict() for cp in route_data.checkpoints]
+
         new_route = GuideRoute(
             guide_id=guide.id,
             route_line=from_shape(route_line, srid=4326),
@@ -1098,6 +1103,8 @@ async def save_guide_route(
             duration=route_data.duration,
             start_address=route_data.start_address,
             end_address=route_data.end_address,
+            description=route_data.description,
+            checkpoints=checkpoints_data,
             is_active=True
         )
         
@@ -1131,6 +1138,8 @@ async def save_guide_route(
         duration=new_route.duration,
         start_address=new_route.start_address,
         end_address=new_route.end_address,
+        description=new_route.description,
+        checkpoints=new_route.checkpoints or [],
         is_active=new_route.is_active,
         created_at=new_route.created_at,
         updated_at=new_route.updated_at
@@ -1195,6 +1204,9 @@ async def get_guide_route(
         duration=route.duration,
         start_address=route.start_address,
         end_address=route.end_address,
+        # ✅ NOUVEAU
+        description=route.description,
+        checkpoints=route.checkpoints or [],
         is_active=route.is_active,
         created_at=route.created_at,
         updated_at=route.updated_at

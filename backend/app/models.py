@@ -218,6 +218,10 @@ class GuideRoute(Base):
     duration = Column(Float, nullable=False)
     start_address = Column(Text, nullable=True)
     end_address = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+
+    checkpoints = Column(JSON, nullable=True, default=list)
+
     
     is_active = Column(Boolean, default=True, nullable=False)
     
@@ -243,6 +247,8 @@ class GuideRoute(Base):
             'duration': self.duration,
             'start_address': self.start_address,
             'end_address': self.end_address,
+            'description':   self.description,
+            'checkpoints':   self.checkpoints or [],
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

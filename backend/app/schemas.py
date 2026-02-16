@@ -4,7 +4,7 @@ Définit la structure des données échangées avec le Frontend
 """
 
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Any, Literal
 from datetime import datetime
 import re
 
@@ -209,6 +209,35 @@ class ResendVerificationRequest(BaseModel):
 
 
 # ============================================
+# ✅ CHECKPOINT SCHEMA — NOUVEAU
+# ============================================
+
+CheckpointType = Literal["Monument", "Repos", "Photo", "Panorama"]
+
+class CheckpointSchema(BaseModel):
+    """Point d'intérêt sur un trajet guide."""
+    id:             str            = Field(..., description="UUID local du checkpoint")
+    name:           str            = Field(..., min_length=2, max_length=120)
+    description:    str            = Field(..., min_length=5, max_length=2000)
+    lat:            float          = Field(..., ge=-90,  le=90)
+    lng:            float          = Field(..., ge=-180, le=180)
+    type:           CheckpointType = Field(...)
+    estimated_time: int            = Field(..., ge=0, le=480, description="Minutes d'arrêt")
+    image_url:      Optional[str]  = Field(None)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "c1a2b3c4-d5e6-7890-abcd-ef1234567890",
+                "name": "Place Jemaa el-Fna",
+                "description": "Coeur historique de Marrakech, classée au patrimoine immatériel UNESCO.",
+                "lat": 31.6258, "lng": -7.9892,
+                "type": "Monument",
+                "estimated_time": 30,
+                "image_url": None
+            }
+        }
+# ============================================
 # SCHEMAS POUR LES ROUTES (TRAJETS)
 # ============================================
 
@@ -245,6 +274,10 @@ class GuideRouteCreate(BaseModel):
     duration: float = Field(..., gt=0, description="Durée estimée en minutes")
     start_address: Optional[str] = Field(None, max_length=500, description="Adresse de départ")
     end_address: Optional[str] = Field(None, max_length=500, description="Adresse d'arrivée")
+    description: Optional[str]            = Field(None, max_length=5000,
+                                                   description="Histoire globale du trajet")
+    checkpoints: Optional[List[CheckpointSchema]] = Field(default_factory=list,
+                                                          description="Points d'intérêt")
     
     @validator('coordinates')
     def validate_coordinates(cls, v):
@@ -252,6 +285,10 @@ class GuideRouteCreate(BaseModel):
         if len(v) < 2:
             raise ValueError('Un trajet doit avoir au moins 2 points (départ et arrivée)')
         return v
+    
+    @validator('checkpoints', pre=True, always=True)
+    def default_checkpoints(cls, v):
+        return v or []
     
     class Config:
         json_schema_extra = {
@@ -266,7 +303,8 @@ class GuideRouteCreate(BaseModel):
                 "distance": 2.5,
                 "duration": 15.0,
                 "start_address": "Casa Voyageurs, Casablanca",
-                "end_address": "Mosquée Hassan II, Casablanca"
+                "end_address": "Mosquée Hassan II, Casablanca",
+                
             }
         }
 
@@ -283,6 +321,9 @@ class GuideRouteResponse(BaseModel):
     duration: float
     start_address: Optional[str] = None
     end_address: Optional[str] = None
+     # ✅ NOUVEAUX CHAMPS
+    description: Optional[str] = None
+    checkpoints: List[Any]     = Field(default_factory=list)
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -387,6 +428,8 @@ class ActiveRouteInfo(BaseModel):
     start_address: Optional[str] = None
     end_address: Optional[str] = None
     coordinates_count: int = 0    # Nombre de points GPS (indicateur de complexité)
+    checkpoints_count:  int = 0   # ✅ NOUVEAU
+
 
 
 class SearchRouteResponse(BaseModel):
