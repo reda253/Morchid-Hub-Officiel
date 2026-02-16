@@ -220,6 +220,10 @@ ON guide_routes(start_address);
 CREATE INDEX IF NOT EXISTS idx_guide_routes_end_address
 ON guide_routes(end_address);
 
+ALTER TABLE guide_routes ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE guide_routes ADD COLUMN IF NOT EXISTS checkpoints JSONB NOT NULL DEFAULT '[]';
+CREATE INDEX IF NOT EXISTS idx_guide_routes_checkpoints ON guide_routes USING GIN (checkpoints);
+
 
 
 
