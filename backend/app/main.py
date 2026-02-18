@@ -1322,6 +1322,95 @@ async def delete_guide_route(
     )
 
 # ============================================
+# ✅ ENDPOINT PUBLIC : TOUS LES TRAJETS ACTIFS
+# ============================================
+
+@app.get(
+    "/api/v1/routes/all",
+    response_model=List[dict],
+    tags=["Public Routes"]
+)
+async def get_all_active_routes(
+    city: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    Récupère tous les trajets actifs avec les informations du guide.
+    
+    Endpoint PUBLIC — pas d'authentification requise.
+    
+    Retourne pour chaque trajet :
+    - route          : données complètes du trajet (description, checkpoints, etc.)
+    - guide_name     : nom complet du guide
+    - guide_photo_url: photo de profil du guide
+    - guide_rating   : note moyenne du guide
+    - guide_total_reviews : nombre d'avis du guide
+    
+    Paramètres :
+    - city   : Filtre optionnel par ville (recherche dans cities_covered du guide)
+    - limit  : Nombre maximum de résultats (défaut: 50)
+    - offset : Offset pour pagination (défaut: 0)
+    """
+    
+    # ============================================
+    # 1. REQUÊTE DE BASE : TRAJETS ACTIFS + JOINTURE GUIDE + USER
+    # ============================================
+    query = (
+        db.query(GuideRoute, Guide, User)
+        .join(Guide, GuideRoute.guide_id == Guide.id)
+        .join(User, Guide.user_id == User.id)
+        .filter(GuideRoute.is_active == True)
+        .filter(Guide.is_verified == True)  # Seulement les guides approuvés
+    )
+    
+    # ============================================
+    # 2. FILTRE OPTIONNEL PAR VILLE
+    # ============================================
+    if city and city.strip():
+        # Recherche dans le tableau JSON cities_covered du guide
+        from sqlalchemy import cast, String
+        query = query.filter(
+            cast(Guide.cities_covered, String).ilike(f'%{city}%')
+        )
+    
+    # ============================================
+    # 3. ORDRE + PAGINATION
+    # ============================================
+    routes = query.order_by(GuideRoute.created_at.desc()).offset(offset).limit(limit).all()
+    
+    # ============================================
+    # 4. CONSTRUCTION DE LA RÉPONSE
+    # ============================================
+    result = []
+    for route, guide, user in routes:
+        result.append({
+            # ── Trajet complet ────────────────────────────────────────────
+            'route': {
+                'id':            route.id,
+                'guide_id':      route.guide_id,
+                'coordinates':   route.coordinates,
+                'distance':      route.distance,
+                'duration':      route.duration,
+                'start_address': route.start_address,
+                'end_address':   route.end_address,
+                'description':   route.description,
+                'checkpoints':   route.checkpoints or [],
+                'is_active':     route.is_active,
+                'created_at':    route.created_at.isoformat() if route.created_at else None,
+                'updated_at':    route.updated_at.isoformat() if route.updated_at else None,
+            },
+            # ── Informations du guide ─────────────────────────────────────
+            'guide_name':          user.full_name,
+            'guide_photo_url':     guide.profile_photo_url,
+            'guide_rating':        guide.average_rating,
+            'guide_total_reviews': guide.total_reviews,
+        })
+    
+    return result
+
+# ============================================
 # ERROR HANDLERS
 # ============================================
 

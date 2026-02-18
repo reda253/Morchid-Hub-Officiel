@@ -5,6 +5,7 @@ import '../models/user_models.dart';
 import '../widgets/shimmer_widget.dart';
 import 'search_screen.dart';
 import 'review_screen.dart'; // Import the new review screen
+import 'available_routes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -613,27 +614,8 @@ print('DEBUG URL IMAGE: $imageUrl');
                   // Carte du trajet
                   InkWell(
                     onTap: () {
-                      // TODO: Récupérer le trajet depuis l'API
-                      final savedRoute = {
-                        // Exemple de données (à remplacer par les vraies données de l'API)
-                        'coordinates': [
-                          {'lat': 33.5731, 'lng': -7.5898},
-                          {'lat': 33.5850, 'lng': -7.6100},
-                        ],
-                        'distance': 5.2,
-                        'duration': 15.0,
-                        'start_address': 'Casablanca Marina',
-                        'end_address': 'Mosquée Hassan II',
-                      };
-                      
-                      Navigator.pushNamed(
-                        context,
-                        '/map',
-                        arguments: {
-                          'mode': 'view',
-                          'savedRoute': savedRoute,
-                        },
-                      );
+                      // Navigation vers AvailableRoutesScreen
+                      Navigator.pushNamed(context, '/available_routes_screen');
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -662,7 +644,7 @@ print('DEBUG URL IMAGE: $imageUrl');
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
-                              Icons.map,
+                              Icons.explore,        // ✅ CHANGÉ : Icons.map → Icons.explore
                               color: primaryColor,
                               size: 32,
                             ),
@@ -673,18 +655,16 @@ print('DEBUG URL IMAGE: $imageUrl');
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Voir le trajet du guide',
+                                  'Découvrir les circuits',  // ✅ CHANGÉ
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: textDark,
                                   ),
                                 ),
-
-                                
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Découvrez l\'itinéraire préparé',
+                                  'Explorez tous les itinéraires disponibles',  // ✅ CHANGÉ
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: textLight,

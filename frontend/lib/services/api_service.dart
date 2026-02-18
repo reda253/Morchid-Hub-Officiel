@@ -955,6 +955,53 @@ static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
       throw ApiError(errorCode: 'DELETE_REVIEW_ERROR', message: e.toString());
     }
   }
+   /// Récupère tous les trajets actifs avec les informations du guide
+  ///
+  /// Endpoint public — filtrage optionnel par ville.
+  /// Retourne une liste de Map<String, dynamic> (JSON brut) pour RouteWithGuideInfo.fromJson
+  static Future<List<dynamic>> fetchAllRoutes({
+    String? city,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final params = <String, String>{
+        'limit':  '$limit',
+        'offset': '$offset',
+      };
+      if (city != null && city.isNotEmpty) {
+        params['city'] = city;
+      }
+
+      final uri = Uri.parse('$baseUrl/api/v1/routes/all')
+          .replace(queryParameters: params);
+
+      final response = await http
+          .get(uri, headers: _publicHeaders())
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data;
+      }
+      if (response.statusCode == 404) {
+        return []; // Aucun trajet disponible
+      }
+      throw ApiError.fromJson(jsonDecode(response.body));
+    } on ApiError {
+      rethrow;
+    } on http.ClientException {
+      throw ApiError(
+        errorCode: 'NETWORK_ERROR',
+        message:   'Impossible de se connecter au serveur.',
+      );
+    } catch (e) {
+      throw ApiError(
+        errorCode: 'FETCH_ROUTES_ERROR',
+        message:   'Erreur inattendue: ${e.toString()}',
+      );
+    }
+  }
 
   }
 
