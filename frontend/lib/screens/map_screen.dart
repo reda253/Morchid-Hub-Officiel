@@ -94,6 +94,7 @@ class MapScreen extends StatefulWidget {
   final String mode; // 'edit' ou 'view'
   final Map<String, dynamic>? savedRoute; // Trajet sauvegardé à afficher en mode 'view'
   
+  
   const MapScreen({
     Key? key,
     this.mode = 'edit',
@@ -108,6 +109,10 @@ class _MapScreenState extends State<MapScreen> {
   // ============================================
   // VARIABLES D'ÉTAT
   // ============================================
+  double? _routePrice;  // Prix du trajet en DH
+  final TextEditingController _priceController = TextEditingController();
+
+
   
   final MapController _mapController = MapController();
   LatLng? _currentPosition;
@@ -155,6 +160,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _descController.dispose();
+    _priceController.dispose();  // ✅ NOUVEAU
     super.dispose();
   }
 
@@ -663,6 +669,9 @@ class _MapScreenState extends State<MapScreen> {
       _showError('Veuillez créer un trajet avant de sauvegarder');
       return;
     }
+    final priceConfirmed = await _showPriceDialog();
+    if (priceConfirmed != true) return;  // Annulé
+
 
     try {
       // Préparer les données à renvoyer au HomeScreen
@@ -686,6 +695,8 @@ class _MapScreenState extends State<MapScreen> {
         // ✅ NOUVEAU
         'description': _routeDescription,
         'checkpoints': _checkpoints.map((cp) => cp.toJson()).toList(),
+        'price': _routePrice,  // ✅ NOUVEAU
+
       };
 
       _showSnackbar('✅ Trajet prêt à être enregistré', isSuccess: true);
@@ -1018,6 +1029,31 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+  
+  Widget _buildFreeLimitWarning(int currentRoutes, int maxRoutes) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: warningColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: warningColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, color: warningColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Trajets gratuits : $currentRoutes/$maxRoutes utilisés',
+              style: TextStyle(fontSize: 13, color: textDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInstructionText() {
     String text;
     IconData icon;
@@ -1138,6 +1174,106 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ]),
     ]);
+  }
+
+  Future<bool?> _showPriceDialog() async {
+    _priceController.text = _routePrice?.toStringAsFixed(0) ?? '';
+    
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.attach_money, color: primaryColor),
+            SizedBox(width: 12),
+            Text('Tarification du trajet'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Définissez le prix de votre circuit',
+              style: TextStyle(fontSize: 14, color: textLight),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _priceController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Prix (DH)',
+                hintText: 'Ex: 150',
+                prefixText: 'DH ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: primaryColor, width: 2),
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _priceController.clear(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 18, color: primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: const Text(
+                      'Laissez vide pour un trajet gratuit',
+                      style: TextStyle(fontSize: 12, color: textDark),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Parser le prix
+              final priceText = _priceController.text.trim();
+              if (priceText.isEmpty) {
+                _routePrice = null;  // Gratuit
+              } else {
+                _routePrice = double.tryParse(priceText);
+                if (_routePrice == null || _routePrice! < 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Prix invalide')),
+                  );
+                  return;
+                }
+              }
+              Navigator.pop(ctx, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

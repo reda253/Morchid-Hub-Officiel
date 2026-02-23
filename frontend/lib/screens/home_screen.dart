@@ -6,6 +6,8 @@ import '../widgets/shimmer_widget.dart';
 import 'search_screen.dart';
 import 'review_screen.dart'; // Import the new review screen
 import 'available_routes_screen.dart';
+import '../widgets/premium_modal_widget.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -851,15 +853,37 @@ print('DEBUG URL IMAGE: $imageUrl');
                             ),
                             const SizedBox(height: 4),
                             // ✅ CORRECTION: Affichage du nom complet
-                            Text(
-                              user.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user.fullName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                // Ajout du badge si Premium est actif
+                                if (guide?.isPremiumActive ?? false) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white24,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.workspace_premium,
+                                      color: Color(0xFFFFD700), // Couleur Or
+                                      size: 24,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -875,6 +899,11 @@ print('DEBUG URL IMAGE: $imageUrl');
                 ],
               ),
             ),
+          ),
+          // ✅ SECTION PREMIUM (Ajout ici)
+        if (guide != null && !guide.isPremiumActive)
+          SliverToBoxAdapter(
+            child: _buildPremiumBanner(),
           ),
 
           // ✅ BANDEAU DE CERTIFICATION (si non vérifié)
@@ -969,6 +998,7 @@ print('DEBUG URL IMAGE: $imageUrl');
               ]),
             ),
           ),
+          
 
           // Actions rapides
           SliverToBoxAdapter(
@@ -1053,6 +1083,7 @@ print('DEBUG URL IMAGE: $imageUrl');
       ),
     );
   }
+  
   // ── Bandeau note pour le guide ────────────────────────────────────────────
   Widget _buildGuideRatingBanner(GuideProfile guide) {
     return GestureDetector(
@@ -1692,5 +1723,116 @@ print('DEBUG URL IMAGE: $imageUrl');
         ),
       ],
     );
+  }
+
+
+  Widget _buildPremiumBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Passez au Premium',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Trajets illimités · Badge Premium',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _showPremiumModal,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFFFFA500),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Découvrir Premium',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+  }
+  Future<void> _showPremiumModal() async {
+    // Vérifier que le profil existe avant d'accéder aux données
+    if (_userProfile?.guideProfile == null) return;
+    
+    final guide = _userProfile!.guideProfile!;
+    
+    // On utilise showModalBottomSheet car c'est ainsi que PremiumModalWidget est conçu
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const PremiumModal(),
+    );
+
+    // Si l'utilisateur a complété l'action, on rafraîchit le profil
+    if (result == true && mounted) {
+      _loadUserProfile();
+    }
   }
 }

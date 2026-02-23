@@ -278,6 +278,7 @@ class GuideRouteCreate(BaseModel):
                                                    description="Histoire globale du trajet")
     checkpoints: Optional[List[CheckpointSchema]] = Field(default_factory=list,
                                                           description="Points d'intérêt")
+    price: Optional[float] = Field(None, ge=0, description="Prix du trajet en DH (optionnel)")
     
     @validator('coordinates')
     def validate_coordinates(cls, v):
@@ -324,6 +325,7 @@ class GuideRouteResponse(BaseModel):
      # ✅ NOUVEAUX CHAMPS
     description: Optional[str] = None
     checkpoints: List[Any]     = Field(default_factory=list)
+    price: Optional[float] = None  # ✅ NOUVEAU
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None

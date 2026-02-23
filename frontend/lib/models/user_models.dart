@@ -162,7 +162,11 @@ class GuideProfile {
 
    // ✅ Classement — synchronisés depuis le backend à chaque avis
   final double averageRating;  // 0.0 – 5.0, arrondi 1 décimale
-  final int totalReviews;      // Nombre absolu d'avis
+  final int totalReviews;   
+     // Nombre absolu d'avis
+  // ✅ AJOUTS POUR LE SYSTÈME PREMIUM
+  final bool isPremium;          // Vient du champ 'is_premium' en DB
+  final DateTime? premiumUntil;  // Vient du champ 'premium_until' en DB
 
   GuideProfile({
     required this.id,
@@ -180,6 +184,9 @@ class GuideProfile {
     this.cineCardUrl,           // ✅ Optionnel
     this.averageRating = 0.0,
     this.totalReviews  = 0,
+    this.isPremium=false,
+    this.premiumUntil,
+
   });
 
   factory GuideProfile.fromJson(Map<String, dynamic> json) {
@@ -200,13 +207,33 @@ class GuideProfile {
       cineCardUrl: json['cine_card_url'],
       averageRating:       (json['average_rating'] ?? 0.0).toDouble(),
       totalReviews:        json['total_reviews']   ?? 0,
+      isPremium: json['is_premium'] ?? false,
+      premiumUntil: json['premium_until'] != null 
+          ? DateTime.parse(json['premium_until']) 
+          : null,
     );
   }
 
 
 // ── Helpers d'affichage ──────────────────────────────────────────────────
 
-  /// "4.7 ★" ou "Nouveau guide" si aucun avis
+  // ✅ LE GETTER QUE VOUS ATTENDIEZ
+  bool get isPremiumActive {
+    if (!isPremium) return false;
+    // Si premiumUntil est null, on considère que c'est un premium à vie (admin ou offre spéciale)
+    if (premiumUntil == null) return true;
+    // Vérifie si la date d'expiration est après l'instant présent
+    return DateTime.now().isBefore(premiumUntil!);
+  }
+  
+  // ✅ Calcul des jours restants
+  int get premiumDaysRemaining {
+    if (premiumUntil == null) return 0;
+    final diff = premiumUntil!.difference(DateTime.now()).inDays;
+    return diff > 0 ? diff : 0;
+  }
+
+
   String get ratingDisplay =>
       totalReviews == 0 ? 'Nouveau guide' : '${averageRating.toStringAsFixed(1)} ★';
 

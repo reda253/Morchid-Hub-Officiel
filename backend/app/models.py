@@ -93,6 +93,9 @@ class Guide(Base):
     profile_photo_url = Column(Text, nullable=True)  # Chemin vers la photo de profil
     license_card_url = Column(Text, nullable=True)   # Chemin vers la photo de la licence
     cine_card_url = Column(Text, nullable=True)      # Chemin vers la photo de la CINE
+
+    is_premium = Column(Boolean, default=False, nullable=False, index=True)
+    premium_until = Column(DateTime(timezone=True), nullable=True)  # Date d'expiration
     
     # Métadonnées
     approval_status = Column(String(20), default='pending_approval')  # pending_approval, approved, rejected
@@ -130,9 +133,23 @@ class Guide(Base):
         self.total_reviews  = row.cnt or 0
         # round() garantit une précision à 1 décimale (ex: 4.666… → 4.7)
         self.average_rating = round(float(row.avg), 1) if row.avg else 0.0
+    
+
+    # ✅ NOUVEAU : Vérifier si le premium est encore valide
+    def is_premium_active(self) -> bool:
+        """Retourne True si le guide a un abonnement Premium actif"""
+        if not self.is_premium:
+            return False
+        if self.premium_until is None:
+            return True  # Premium illimité (cas admin)
+        return datetime.now(self.premium_until.tzinfo) < self.premium_until
 
     def __repr__(self):
-        return f"<Guide(id={self.id}, rating={self.average_rating}/5, reviews={self.total_reviews})>"
+    # On détermine si on affiche la couronne
+      premium = "👑" if self.is_premium_active() else ""
+    
+    # On combine toutes les infos des deux versions
+      return f"<Guide{premium}(id={self.id}, rating={self.average_rating}/5, reviews={self.total_reviews})>"
 
 
 # ============================================
@@ -221,6 +238,8 @@ class GuideRoute(Base):
     description = Column(Text, nullable=True)
 
     checkpoints = Column(JSON, nullable=True, default=list)
+    # ✅ NOUVEAU : TARIFICATION
+    price = Column(Float, nullable=True)  # Prix en DH (Dirhams marocains)
 
     
     is_active = Column(Boolean, default=True, nullable=False)
@@ -231,7 +250,16 @@ class GuideRoute(Base):
     guide = relationship("Guide", back_populates="routes")
 
     def __repr__(self):
-        return f"<GuideRoute(id={self.id}, guide_id={self.guide_id}, distance={self.distance}km, is_active={self.is_active})>"
+    # Logique pour le prix
+      price_str = f"{self.price}DH" if self.price else "Gratuit"
+    
+    # Logique pour les checkpoints
+      cp_count = len(self.checkpoints) if self.checkpoints else 0
+    
+    # Construction de la chaîne finale avec toutes les infos
+      return (f"<GuideRoute(id={self.id}, guide_id={self.guide_id}, "
+            f"dist={self.distance}km, price={price_str}, "
+            f"checkpoints={cp_count}, active={self.is_active})>")
     
     # ============================================
     # MÉTHODES UTILITAIRES
@@ -249,6 +277,7 @@ class GuideRoute(Base):
             'end_address': self.end_address,
             'description':   self.description,
             'checkpoints':   self.checkpoints or [],
+            'price': self.price,  # ✅ NOUVEAU
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

@@ -1002,6 +1002,45 @@ static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
       );
     }
   }
+  // ============================================
+  // 👑 GESTION PREMIUM (NOUVEAU)
+  // ============================================
+
+  /// Active l'abonnement Premium pour le guide connecté
+  /// 
+  /// Retourne un [SuccessResponse] contenant le message de succès du backend.
+  static Future<SuccessResponse> upgradeToPremium() async {
+    try {
+      print('📤 Requête d\'upgrade Premium envoyée');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/guide/upgrade-premium'),
+        headers: await _getAuthHeaders(), // Utilise votre méthode de gestion de token existante
+      ).timeout(timeout);
+
+      print('📥 Réponse Premium reçue: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return SuccessResponse.fromJson(responseData);
+      } else {
+        // Tente de décoder l'erreur structurée du backend Laravel
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw ApiError.fromJson(errorData);
+      }
+    } on http.ClientException {
+      throw ApiError(
+        errorCode: 'NETWORK_ERROR',
+        message: 'Impossible de se connecter au serveur pour l\'activation Premium.',
+      );
+    } catch (e) {
+      if (e is ApiError) rethrow;
+      throw ApiError(
+        errorCode: 'PREMIUM_ERROR',
+        message: 'Une erreur est survenue lors de l\'activation : ${e.toString()}',
+      );
+    }
+  }
 
   }
 

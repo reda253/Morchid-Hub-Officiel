@@ -241,29 +241,61 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                     ),
                   ),
                   // Badge checkpoints
-                  if (route.checkpoints.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                // Badge checkpoints (Existant mais regroupé)
+                if (route.checkpoints.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on, size: 12, color: AppColors.primary),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${route.checkpoints.length}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              // ✅ NOUVEAU : Badge prix (Code de Claude intégré)
+              if (route.price != null && route.price! > 0) ...[
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: const Color(0xFFFFA500).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.location_on, size: 12, color: AppColors.primary),
+                          const Icon(Icons.payments, size: 12, color: Color(0xFFFFA500)),
                           const SizedBox(width: 3),
                           Text(
-                            '${route.checkpoints.length}',
+                            route.priceDisplay, // Utilise le getter que nous avons ajouté au modèle
                             style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFFFA500),
                             ),
                           ),
                         ],
                       ),
                     ),
+                  ],
                 ],
               ),
 
@@ -386,6 +418,24 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         ),
                       ],
                     ),
+                    if (route.price != null && route.price! > 0) ...[
+                      Container(width: 1, height: 20, color: AppColors.textLight.withOpacity(0.3)),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.payments, color: Color(0xFFFFA500), size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            route.priceDisplay,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFFFA500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

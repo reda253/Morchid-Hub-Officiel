@@ -1052,9 +1052,31 @@ async def save_guide_route(
                 "message": "Profil guide non trouvé"
             }
         )
+    # ============================================
+    # 3. ✅ VÉRIFIER LA LIMITE DE TRAJETS (GUIDES GRATUITS)
+    # ============================================
+    active_routes_count = db.query(GuideRoute).filter(
+        GuideRoute.guide_id == guide.id,
+        GuideRoute.is_active == True
+    ).count()
+    
+    # Si le guide n'est PAS premium et a déjà 2 trajets actifs
+    if not guide.is_premium_active() and active_routes_count >= 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "FREE_LIMIT_REACHED",
+                "message": "Limite de trajets gratuits atteinte (2/2). Passez au Premium pour créer des trajets illimités.",
+                "details": {
+                    "current_routes": active_routes_count,
+                    "max_routes": 2,
+                    "upgrade_required": True
+                }
+            }
+        )
     
     # ============================================
-    # 3. DÉSACTIVER L'ANCIEN TRAJET (UN SEUL ACTIF)
+    # 4. DÉSACTIVER L'ANCIEN TRAJET (UN SEUL ACTIF)
     # ============================================
     db.query(GuideRoute).filter(
         GuideRoute.guide_id == guide.id,
@@ -1105,17 +1127,20 @@ async def save_guide_route(
             end_address=route_data.end_address,
             description=route_data.description,
             checkpoints=checkpoints_data,
+            price=route_data.price,  # ✅ NOUVEAU : Prix
             is_active=True
         )
         
         db.add(new_route)
         db.commit()
         db.refresh(new_route)
-        
-        print(f"[OK] Trajet sauvegarde pour le guide {guide.id}")
+
+        premium_emoji = "👑" if guide.is_premium_active() else ""
+        print(f"[OK] {premium_emoji} Trajet sauvegarde pour le guide {guide.id}")
         print(f"   - Distance: {route_data.distance} km")
         print(f"   - Durée: {route_data.duration} min")
         print(f"   - Points: {len(route_data.coordinates)}")
+        print(f"   - Prix: {route_data.price} DH" if route_data.price else "   - Gratuit")
         
     except Exception as e:
         db.rollback()
@@ -1140,6 +1165,7 @@ async def save_guide_route(
         end_address=new_route.end_address,
         description=new_route.description,
         checkpoints=new_route.checkpoints or [],
+        price=new_route.price,  # ✅ NOUVEAU
         is_active=new_route.is_active,
         created_at=new_route.created_at,
         updated_at=new_route.updated_at
@@ -1409,6 +1435,108 @@ async def get_all_active_routes(
         })
     
     return result
+
+
+# ============================================
+# ✅ ENDPOINT : UPGRADE PREMIUM
+# ============================================
+
+@app.post(
+    "/api/v1/guides/upgrade-premium",
+    response_model=SuccessResponse,
+    tags=["Premium"]
+)
+async def upgrade_to_premium(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Active l'abonnement Premium pour un guide.
+    
+    Simule un paiement réussi et active le Premium pour 30 jours.
+    En production, cet endpoint serait appelé après une transaction
+    réussie via un gateway de paiement (Stripe, PayPal, etc.).
+    
+    Bénéfices Premium :
+    - Trajets illimités (vs 2 en gratuit)
+    - Meilleure visibilité dans les recherches
+    - Support prioritaire
+    - Badge Premium visible
+    """
+    
+    # ============================================
+    # 1. VÉRIFIER QUE L'UTILISATEUR EST UN GUIDE
+    # ============================================
+    if current_user.role != 'guide':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error_code": "NOT_A_GUIDE",
+                "message": "Seuls les guides peuvent s'abonner au Premium"
+            }
+        )
+    
+    # ============================================
+    # 2. RÉCUPÉRER LE PROFIL GUIDE
+    # ============================================
+    guide = db.query(Guide).filter(Guide.user_id == current_user.id).first()
+    
+    if not guide:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error_code": "GUIDE_PROFILE_NOT_FOUND",
+                "message": "Profil guide non trouvé"
+            }
+        )
+    
+    # ============================================
+    # 3. VÉRIFIER SI DÉJÀ PREMIUM
+    # ============================================
+    if guide.is_premium and guide.premium_until:
+        # Si déjà premium et pas encore expiré
+        if datetime.now(guide.premium_until.tzinfo) < guide.premium_until:
+            return SuccessResponse(
+                status="success",
+                message="Vous êtes déjà abonné Premium",
+                data={
+                    "is_premium": True,
+                    "premium_until": guide.premium_until.isoformat(),
+                    "days_remaining": (guide.premium_until - datetime.now(guide.premium_until.tzinfo)).days
+                }
+            )
+    
+    # ============================================
+    # 4. ACTIVER LE PREMIUM POUR 30 JOURS
+    # ============================================
+    from datetime import timedelta
+    
+    guide.is_premium = True
+    guide.premium_until = datetime.now() + timedelta(days=30)
+    
+    db.commit()
+    db.refresh(guide)
+    
+    print(f"[PREMIUM] Guide {guide.id} upgraded to Premium until {guide.premium_until}")
+    
+    # ============================================
+    # 5. RETOURNER LA CONFIRMATION
+    # ============================================
+    return SuccessResponse(
+        status="success",
+        message="✨ Bienvenue dans Morchid Hub Premium !",
+        data={
+            "is_premium": True,
+            "premium_until": guide.premium_until.isoformat(),
+            "days_remaining": 30,
+            "benefits": [
+                "Trajets illimités",
+                "Meilleure visibilité",
+                "Support prioritaire",
+                "Badge Premium"
+            ]
+        }
+    )
 
 # ============================================
 # ERROR HANDLERS

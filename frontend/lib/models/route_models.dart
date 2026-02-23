@@ -60,6 +60,7 @@ class GuideRoute {
   final String? endAddress;
   final String? description;
   final List<Checkpoint> checkpoints;
+  final double? price; // ✅ Ajoute cette ligne
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -74,6 +75,7 @@ class GuideRoute {
     this.endAddress,
     this.description,
     this.checkpoints = const [],
+    this.price, // ✅ Ajoute au constructeur
     required this.isActive,
     this.createdAt,
     this.updatedAt,
@@ -97,6 +99,7 @@ class GuideRoute {
       checkpoints: (json['checkpoints'] as List<dynamic>? ?? [])
           .map((cp) => Checkpoint.fromJson(cp as Map<String, dynamic>))
           .toList(),
+      price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
       isActive:  json['is_active'] ?? true,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -117,6 +120,10 @@ class GuideRoute {
         'created_at':    createdAt?.toIso8601String(),
         'updated_at':    updatedAt?.toIso8601String(),
       };
+  String get priceDisplay {
+    if (price == null || price == 0) return 'Gratuit';
+    return '${price!.toStringAsFixed(0)} DH';
+  }
 }
 
 /// Résultat de recherche enrichi avec info du guide
@@ -144,6 +151,7 @@ class RouteWithGuideInfo {
       guideTotalReviews: json['guide_total_reviews'] ?? 0,
     );
   }
+  
 
   /// "4.7 ★" ou "Nouveau guide"
   String get ratingDisplay =>
@@ -154,4 +162,5 @@ class RouteWithGuideInfo {
     if (guideTotalReviews == 0) return 'Aucun avis';
     return '${guideRating.toStringAsFixed(1)} ★ ($guideTotalReviews avis)';
   }
+  
 }
