@@ -1464,6 +1464,8 @@ async def upgrade_to_premium(
     - Badge Premium visible
     """
     
+    from datetime import datetime, timedelta
+    
     # ============================================
     # 1. VÉRIFIER QUE L'UTILISATEUR EST UN GUIDE
     # ============================================
@@ -1509,7 +1511,6 @@ async def upgrade_to_premium(
     # ============================================
     # 4. ACTIVER LE PREMIUM POUR 30 JOURS
     # ============================================
-    from datetime import timedelta
     
     guide.is_premium = True
     guide.premium_until = datetime.now() + timedelta(days=30)

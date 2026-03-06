@@ -11,6 +11,8 @@ class SearchGuideUserInfo {
   final String id;
   final String fullName;
   final String email;
+  // ✅ Numéro de téléphone — stocké dans users, exposé ici pour accès direct
+  final String? phone;
   final String role;
   final bool isAdmin;
   final bool isActive;
@@ -21,6 +23,7 @@ class SearchGuideUserInfo {
     required this.id,
     required this.fullName,
     required this.email,
+    this.phone,
     required this.role,
     required this.isAdmin,
     required this.isActive,
@@ -33,6 +36,7 @@ class SearchGuideUserInfo {
       id: json['id'],
       fullName: json['full_name'],
       email: json['email'],
+      phone: json['phone'] as String?,  // ✅ Depuis UserResponse
       role: json['role'],
       isAdmin: json['is_admin'] ?? false,
       isActive: json['is_active'] ?? true,
@@ -53,6 +57,7 @@ class SearchGuideInfo {
   final int yearsOfExperience;
   final String bio;
   final bool isVerified;
+  final bool isPremium;
   final int ecoScore;
   final String approvalStatus;
   final String? profilePhotoUrl;
@@ -74,6 +79,7 @@ class SearchGuideInfo {
     required this.isVerified,
     required this.ecoScore,
     required this.approvalStatus,
+    required this.isPremium,
     this.profilePhotoUrl,
     this.licenseCardUrl,
     this.cineCardUrl,
@@ -93,6 +99,7 @@ class SearchGuideInfo {
       isVerified: json['is_verified'] ?? false,
       ecoScore: json['eco_score'] ?? 0,
       approvalStatus: json['approval_status'] ?? 'approved',
+      isPremium: json['is_premium'] ?? false,
       profilePhotoUrl: json['profile_photo_url'],
       licenseCardUrl: json['license_card_url'],
       cineCardUrl: json['cine_card_url'],
@@ -106,13 +113,21 @@ class SearchGuideInfo {
 class SearchGuideResult {
   final SearchGuideUserInfo user;
   final SearchGuideInfo guide;
+  // ✅ Numéro de téléphone du guide — vient de users.phone via la jointure backend.
+  // Pas de nouvelle colonne DB : le backend l'extrait et l'expose à plat.
+  final String? phone;
 
-  SearchGuideResult({required this.user, required this.guide});
+  SearchGuideResult({
+    required this.user,
+    required this.guide,
+    this.phone,
+  });
 
   factory SearchGuideResult.fromJson(Map<String, dynamic> json) {
     return SearchGuideResult(
       user: SearchGuideUserInfo.fromJson(json['user']),
       guide: SearchGuideInfo.fromJson(json['guide']),
+      phone: json['phone'] as String?,  // ✅ Champ plat au niveau racine
     );
   }
 

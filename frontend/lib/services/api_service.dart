@@ -37,6 +37,7 @@ class ApiService {
   static const String verifyEmailEndpoint = '/api/v1/auth/verify-email';
   static const String resendVerificationEndpoint = '/api/v1/auth/resend-verification';
   static const String verifyGuideEndpoint = '/api/v1/auth/verify-guide';
+  static const String premiumEndpoint = '/api/v1/guides/upgrade-premium';
 
   // ✅ NOUVEAUX endpoints de recherche
   static const String searchGuidesEndpoint          = '/api/v1/search/guides';
@@ -1011,33 +1012,39 @@ static Future<Map<String, dynamic>?> getGuideRoute(String guideId) async {
   /// Retourne un [SuccessResponse] contenant le message de succès du backend.
   static Future<SuccessResponse> upgradeToPremium() async {
     try {
-      print('📤 Requête d\'upgrade Premium envoyée');
+      print('📤 Requête upgrade Premium → $premiumEndpoint');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/guide/upgrade-premium'),
-        headers: await _getAuthHeaders(), // Utilise votre méthode de gestion de token existante
+        Uri.parse('$baseUrl$premiumEndpoint'),
+        headers: await _getAuthHeaders(),
       ).timeout(timeout);
 
-      print('📥 Réponse Premium reçue: ${response.statusCode}');
+      print('📥 Réponse Premium: ${response.statusCode}');
+      print('📜 Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        return SuccessResponse.fromJson(responseData);
-      } else {
-        // Tente de décoder l'erreur structurée du backend Laravel
-        final Map<String, dynamic> errorData = jsonDecode(response.body);
-        throw ApiError.fromJson(errorData);
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return SuccessResponse.fromJson(data);
       }
+
+      // Gestion détaillée des erreurs métier du backend
+      final Map<String, dynamic> errorData = jsonDecode(response.body);
+      throw ApiError(
+        errorCode: errorData['error_code'] ?? 'PREMIUM_ERROR',
+        message:   errorData['message']    ?? 'Erreur lors de l\'activation Premium',
+      );
+
     } on http.ClientException {
       throw ApiError(
         errorCode: 'NETWORK_ERROR',
-        message: 'Impossible de se connecter au serveur pour l\'activation Premium.',
+        message:   'Impossible de contacter le serveur pour l\'activation Premium.',
       );
+    } on ApiError {
+      rethrow;
     } catch (e) {
-      if (e is ApiError) rethrow;
       throw ApiError(
         errorCode: 'PREMIUM_ERROR',
-        message: 'Une erreur est survenue lors de l\'activation : ${e.toString()}',
+        message:   'Erreur inattendue : ${e.toString()}',
       );
     }
   }

@@ -6,7 +6,9 @@ import '../widgets/shimmer_widget.dart';
 import 'search_screen.dart';
 import 'review_screen.dart'; // Import the new review screen
 import 'available_routes_screen.dart';
+import '../screens/payment_screen.dart';
 import '../widgets/premium_modal_widget.dart';
+import '../widgets/whatsapp_contact_button.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   int _currentIndex = 0;
   Map<String, dynamic>? _lastGuideData; // Add this line
+  String? _lastGuidePhone; // ✅ Numéro WhatsApp du dernier guide contacté
 
 
 
@@ -52,7 +55,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadLastGuide() async {
     final guide = await StorageService.getLastGuide();
     if (mounted && guide != null) {
-      setState(() => _lastGuide = guide);
+      setState(() {
+        _lastGuide = guide;
+        _lastGuidePhone = guide['phone'] as String?; // ✅ Récupérer le numéro WhatsApp
+      });
     }
   }
 
@@ -68,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _userProfile = profile;
         _lastGuideData = lastGuide;
+        _lastGuidePhone = lastGuide?['phone'] as String?; // ✅ Sync phone aussi ici
         _isLoading = false;
       });
     } catch (e) {
@@ -784,27 +791,43 @@ print('DEBUG URL IMAGE: $imageUrl');
           // Bouton secondaire — noter un guide exemple (accès rapide)
           if (_lastGuide != null) ...[ // ✅ Afficher seulement si on a un historique
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => _openReviewScreen(
-                guideId:   _lastGuide!['id'],
-                guideName: _lastGuide!['name'],
-                guidePhotoUrl: _lastGuide!['photo'],
-              ),
-              icon: const Icon(Icons.history, size: 18, color: primaryColor),
-              label: Text(
-                'Noter à nouveau ${_lastGuide!['name']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  color: primaryColor,
+            Row(
+              children: [
+                // Bouton "noter à nouveau" — prend tout l'espace disponible
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openReviewScreen(
+                      guideId:   _lastGuide!['id'],
+                      guideName: _lastGuide!['name'],
+                      guidePhotoUrl: _lastGuide!['photo'],
+                    ),
+                    icon: const Icon(Icons.history, size: 18, color: primaryColor),
+                    label: Text(
+                      'Noter ${_lastGuide!['name']}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: primaryColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 46),
+                      side: const BorderSide(color: primaryColor, width: 1.2),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
-              ),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 46),
-                side: const BorderSide(color: primaryColor, width: 1.2),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
+                // ✅ Bouton WhatsApp — affiché uniquement si le numéro est disponible
+                if (_lastGuidePhone != null && _lastGuidePhone!.isNotEmpty) ...[
+                  const SizedBox(width: 10),
+                  WhatsAppContactButton(
+                    phone: _lastGuidePhone!,
+                    guideName: _lastGuide!['name'] ?? 'le guide',
+                  ),
+                ],
+              ],
             ),
           ],
         ],
@@ -1324,6 +1347,30 @@ print('DEBUG URL IMAGE: $imageUrl');
               children: [
                 _buildInfoRow(Icons.email, 'Email', user.email),
                 _buildInfoRow(Icons.phone, 'Téléphone', user.phone),
+                // ✅ Bouton WhatsApp rapide (visible pour les touristes si rôle guide)
+                if (user.role == 'guide' && _userProfile!.user.phone.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 32), // Aligne avec les autres lignes
+                        const SizedBox(width: 12),
+                        WhatsAppContactButton(
+                          phone: user.phone,
+                          guideName: user.fullName,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Contacter via WhatsApp',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF25D366),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 _buildInfoRow(
                   Icons.verified_user,
                   'Email vérifié',
@@ -1832,7 +1879,19 @@ print('DEBUG URL IMAGE: $imageUrl');
 
     // Si l'utilisateur a complété l'action, on rafraîchit le profil
     if (result == true && mounted) {
-      _loadUserProfile();
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PaymentScreen(
+          amount: 10.0, // Le prix de votre abonnement
+          planName: 'Abonnement Mensuel Guide',
+        ),
+      ),
+    ).then((paid) {
+      if (paid == true) {
+        _loadUserProfile(); // Rafraîchir pour afficher le badge 👑
+      }
+    });
   }
 }
+  }

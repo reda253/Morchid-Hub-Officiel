@@ -411,9 +411,13 @@ class SearchGuideResponse(BaseModel):
     """
     Réponse de recherche de guide (endpoint /search/guides).
     Retourne un objet 'user' et un objet 'guide' imbriqués.
+    Le champ 'phone' est extrait de la table users via la jointure
+    et exposé à plat pour que le frontend puisse l'utiliser directement
+    (ex: bouton WhatsApp) sans avoir à le chercher dans user.phone.
     """
     user: UserResponse
     guide: GuideResponse
+    phone: Optional[str] = None  # ✅ Copié depuis user.phone — pas de nouvelle colonne DB
 
     class Config:
         from_attributes = True
@@ -602,5 +606,3 @@ class SuccessResponse(BaseModel):
     status: str = "success"
     message: str
     data: Optional[dict] = None
-
-

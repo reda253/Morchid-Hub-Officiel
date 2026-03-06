@@ -155,7 +155,11 @@ async def search_guides(
 
     # ── Mapper vers SearchGuideResponse ───────────────────────────────────
     return [
-        SearchGuideResponse(user=user, guide=guide)
+        SearchGuideResponse(
+            user=user,
+            guide=guide,
+            phone=user.phone,  # ✅ Copié depuis users.phone — jointure déjà faite
+        )
         for user, guide in results
     ]
 
