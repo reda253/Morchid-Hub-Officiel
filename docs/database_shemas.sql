@@ -224,6 +224,26 @@ ALTER TABLE guide_routes ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE guide_routes ADD COLUMN IF NOT EXISTS checkpoints JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS idx_guide_routes_checkpoints ON guide_routes USING GIN (checkpoints);
 
+ALTER TABLE guides
+    ADD COLUMN IF NOT EXISTS is_premium BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE guides
+    ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP WITH TIME ZONE;
+
+-- Index pour optimiser les requêtes premium
+CREATE INDEX IF NOT EXISTS idx_guides_is_premium
+    ON guides(is_premium) WHERE is_premium = TRUE;
+
+-- 2. Ajout colonne prix dans la table guide_routes
+ALTER TABLE guide_routes
+    ADD COLUMN IF NOT EXISTS price FLOAT;
+
+-- Commentaire pour documenter
+COMMENT ON COLUMN guide_routes.price IS 'Prix du trajet en DH (Dirhams marocains)';
+COMMENT ON COLUMN guides.is_premium IS 'Indique si le guide a un abonnement Premium actif';
+COMMENT ON COLUMN guides.premium_until IS 'Date d''expiration de l''abonnement Premium (NULL = illimité)';
+
+
 
 
 
