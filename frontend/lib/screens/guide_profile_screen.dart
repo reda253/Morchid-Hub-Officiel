@@ -28,10 +28,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
   bool _reviewSubmitted = false;
 
   // ── Couleurs ──────────────────────────────────────────────────
-  static const Color primaryColor   = Color(0xFF2D6A4F);
-  static const Color secondaryColor = Color(0xFF1B4332);
-  static const Color textDark       = Color(0xFF2B2D42);
-  static const Color textLight      = Color(0xFF8D99AE);
+  static const Color primaryColor   = Color(0xFF004B87);
+  static const Color secondaryColor = Color(0xFF00325C);
+  static const Color textDark       = Color(0xFF1A1C1E);
+  static const Color textLight      = Color(0xFF6B7280);
   static const Color starColor      = Color(0xFFFFC107);
 
   @override

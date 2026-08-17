@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 // ============================================
 // USER DATA MODEL
 // ============================================
@@ -80,7 +78,7 @@ class GuideProfile {
           : [],
       yearsOfExperience: json['years_of_experience'] ?? 0,
       bio: json['bio'] ?? '',
-      approvalStatus: json['approval_status'] ?? 'pending_approval',
+      approvalStatus: json['approval_status'] ?? 'pending',
       profilePhotoUrl: json['profile_photo_url'],
       licenseCardUrl: json['license_card_url'],
       cineCardUrl: json['cine_card_url'],
@@ -131,6 +129,131 @@ class SupportMessage {
           : null,
     );
   }
+}
+
+// ============================================
+// ANALYTICS MODELS (revenu / abonnements réels)
+// ============================================
+
+/// KPI globaux du tableau de bord admin (endpoint /admin/analytics/overview).
+class RevenueOverview {
+  final String currency;
+  final double totalRevenue;
+  final double revenueThisMonth;
+  final double revenueLastMonth;
+  final double revenueGrowthPct;
+  final int activeSubscriptions;
+  final double mrr;
+  final int newSubscriptionsThisMonth;
+  final int totalSubscriptions;
+  final double arpu;
+
+  RevenueOverview({
+    required this.currency,
+    required this.totalRevenue,
+    required this.revenueThisMonth,
+    required this.revenueLastMonth,
+    required this.revenueGrowthPct,
+    required this.activeSubscriptions,
+    required this.mrr,
+    required this.newSubscriptionsThisMonth,
+    required this.totalSubscriptions,
+    required this.arpu,
+  });
+
+  factory RevenueOverview.fromJson(Map<String, dynamic> json) {
+    double d(dynamic v) => (v ?? 0).toDouble();
+    int i(dynamic v) => (v ?? 0) as int;
+    return RevenueOverview(
+      currency: json['currency'] ?? 'MAD',
+      totalRevenue: d(json['total_revenue']),
+      revenueThisMonth: d(json['revenue_this_month']),
+      revenueLastMonth: d(json['revenue_last_month']),
+      revenueGrowthPct: d(json['revenue_growth_pct']),
+      activeSubscriptions: i(json['active_subscriptions']),
+      mrr: d(json['mrr']),
+      newSubscriptionsThisMonth: i(json['new_subscriptions_this_month']),
+      totalSubscriptions: i(json['total_subscriptions']),
+      arpu: d(json['arpu']),
+    );
+  }
+}
+
+/// Un point de la série mensuelle du revenu.
+class RevenuePoint {
+  final String month;   // 'YYYY-MM'
+  final String label;   // 'Août'
+  final double revenue;
+  final int subscriptions;
+
+  RevenuePoint({
+    required this.month,
+    required this.label,
+    required this.revenue,
+    required this.subscriptions,
+  });
+
+  factory RevenuePoint.fromJson(Map<String, dynamic> json) => RevenuePoint(
+        month: json['month'] ?? '',
+        label: json['label'] ?? '',
+        revenue: (json['revenue'] ?? 0).toDouble(),
+        subscriptions: (json['subscriptions'] ?? 0) as int,
+      );
+}
+
+class RevenueTimeseries {
+  final String currency;
+  final double totalRevenue;
+  final List<RevenuePoint> points;
+
+  RevenueTimeseries({
+    required this.currency,
+    required this.totalRevenue,
+    required this.points,
+  });
+
+  factory RevenueTimeseries.fromJson(Map<String, dynamic> json) => RevenueTimeseries(
+        currency: json['currency'] ?? 'MAD',
+        totalRevenue: (json['total_revenue'] ?? 0).toDouble(),
+        points: (json['points'] as List<dynamic>? ?? [])
+            .map((e) => RevenuePoint.fromJson(e))
+            .toList(),
+      );
+}
+
+/// Répartition des abonnements actifs par tier.
+class TierBreakdown {
+  final String tier;
+  final int active;
+  final double revenue;
+
+  TierBreakdown({required this.tier, required this.active, required this.revenue});
+
+  factory TierBreakdown.fromJson(Map<String, dynamic> json) => TierBreakdown(
+        tier: json['tier'] ?? '',
+        active: (json['active'] ?? 0) as int,
+        revenue: (json['revenue'] ?? 0).toDouble(),
+      );
+}
+
+class SubscriptionsBreakdown {
+  final String currency;
+  final int activeTotal;
+  final List<TierBreakdown> byTier;
+
+  SubscriptionsBreakdown({
+    required this.currency,
+    required this.activeTotal,
+    required this.byTier,
+  });
+
+  factory SubscriptionsBreakdown.fromJson(Map<String, dynamic> json) => SubscriptionsBreakdown(
+        currency: json['currency'] ?? 'MAD',
+        activeTotal: (json['active_total'] ?? 0) as int,
+        byTier: (json['by_tier'] as List<dynamic>? ?? [])
+            .map((e) => TierBreakdown.fromJson(e))
+            .toList(),
+      );
 }
 
 // ============================================

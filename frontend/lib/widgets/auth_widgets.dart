@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
 
-// ============================================
-// 🎨 DESIGN SYSTEM - MORCHID HUB
-// ============================================
-class AppColors {
-  static const Color primary = Color(0xFF2D6A4F); // Vert Émeraude
-  static const Color secondary = Color(0xFF1B4332); // Bleu Marine Foncé
-  static const Color background = Color(0xFFF8F9FA); // Blanc Cassé
-  static const Color textDark = Color(0xFF2B2D42);
-  static const Color textLight = Color(0xFF8D99AE);
-  static const Color error = Color(0xFFDC2626);
-  static const Color success = Color(0xFF16A34A);
-}
+// Palette unique : la classe AppColors rivale a été supprimée au profit de la
+// palette canonique Stitch. Réexportée pour les écrans qui l'importaient d'ici.
+import '../utils/app_colors.dart';
+export '../utils/app_colors.dart';
 
 // ============================================
 // 📝 CUSTOM TEXT FIELD

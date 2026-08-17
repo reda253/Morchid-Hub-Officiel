@@ -9,6 +9,9 @@ import 'screens/map_screen.dart';
 import 'screens/admin_screen.dart';
 import 'widgets/auth_guard.dart';
 import 'screens/available_routes_screen.dart';
+import 'screens/admin_analytics_screen.dart';
+import 'screens/pricing_screen.dart';
+import 'theme/app_theme.dart';
 
 
 void main() {
@@ -24,12 +27,8 @@ class MorchidHubApp extends StatelessWidget {
       title: 'Morchid Hub',
       debugShowCheckedModeBanner: false,
       
-      // Configuration du thème global
-      theme: ThemeData(
-        primaryColor: const Color(0xFF2D6A4F),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        fontFamily: 'Poppins', // Ou 'Montserrat'
-      ),
+      // Thème global — design system Stitch (Atlantic Blue / Manrope + Epilogue)
+      theme: AppTheme.light,
       
       // Routes de navigation
       initialRoute: '/login',
@@ -64,6 +63,9 @@ class MorchidHubApp extends StatelessWidget {
     case '/available_routes_screen':
       return MaterialPageRoute(builder: (_) => const AvailableRoutesScreen());
 
+    case '/pricing':
+      return MaterialPageRoute(builder: (_) => const PricingScreen());
+
     case '/map':
   final args = settings.arguments as Map<String, dynamic>?;
   return MaterialPageRoute(
@@ -75,8 +77,16 @@ class MorchidHubApp extends StatelessWidget {
   case '/admin':
             return MaterialPageRoute(
               builder: (_) => AuthGuard(
-                allowedRoles: const ['admin'],
+                allowedRoles: const ['admin', 'administrator'],
                 child: const AdminScreen(),
+              ),
+            );
+
+    case '/admin/analytics':
+            return MaterialPageRoute(
+              builder: (_) => AuthGuard(
+                allowedRoles: const ['admin', 'administrator'],
+                child: const AdminAnalyticsScreen(),
               ),
             );
 

@@ -276,20 +276,20 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFA500).withOpacity(0.1),
+                        color: const Color(0xFF004B87).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.payments, size: 12, color: Color(0xFFFFA500)),
+                          const Icon(Icons.payments, size: 12, color: Color(0xFF004B87)),
                           const SizedBox(width: 3),
                           Text(
                             route.priceDisplay, // Utilise le getter que nous avons ajouté au modèle
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFFA500),
+                              color: Color(0xFF004B87),
                             ),
                           ),
                         ],
@@ -423,14 +423,14 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.payments, color: Color(0xFFFFA500), size: 18),
+                          const Icon(Icons.payments, color: Color(0xFF004B87), size: 18),
                           const SizedBox(width: 6),
                           Text(
                             route.priceDisplay,
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFFA500),
+                              color: Color(0xFF004B87),
                             ),
                           ),
                         ],

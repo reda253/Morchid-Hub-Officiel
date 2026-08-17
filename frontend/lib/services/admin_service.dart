@@ -19,8 +19,13 @@ class AdminService {
   // Endpoints
   static const String adminUsersEndpoint = '/api/v1/admin/users';
   static const String adminPendingGuidesEndpoint = '/api/v1/admin/guides/pending';
+  static const String adminGuidesEndpoint = '/api/v1/admin/guides';
   static const String adminSupportMessagesEndpoint = '/api/v1/admin/support/messages';
   
+  static const String analyticsOverviewEndpoint = '/api/v1/admin/analytics/overview';
+  static const String analyticsRevenueEndpoint = '/api/v1/admin/analytics/revenue';
+  static const String analyticsSubscriptionsEndpoint = '/api/v1/admin/analytics/subscriptions';
+
   static String approveGuideEndpoint(String id) => '/api/v1/admin/guides/$id/approve';
   static String rejectGuideEndpoint(String id) => '/api/v1/admin/guides/$id/reject';
   static String toggleUserStatusEndpoint(String id) => '/api/v1/admin/users/$id/toggle-status';
@@ -144,6 +149,23 @@ class AdminService {
     }
   }
 
+  /// Récupère les guides filtrés par statut (pending / approved / rejected)
+  static Future<List<GuideProfile>> fetchGuidesByStatus(String status) async {
+    try {
+      final response = await _authenticatedRequest(
+        'GET', '$adminGuidesEndpoint?status=$status',
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => GuideProfile.fromJson(json)).toList();
+      }
+      throw ApiError.fromJson(jsonDecode(response.body));
+    } catch (e) {
+      if (e is ApiError) rethrow;
+      throw ApiError(errorCode: 'FETCH_GUIDES_ERROR', message: 'Erreur: $e');
+    }
+  }
+
   /// Approuve un guide
   static Future<SuccessResponse> approveGuide(String guideId) async {
     try {
@@ -247,6 +269,39 @@ class AdminService {
         message: 'Erreur lors de la résolution: $e',
       );
     }
+  }
+
+  // ============================================
+  // ANALYTICS REVENU / ABONNEMENTS (données réelles)
+  // ============================================
+
+  /// KPI globaux du tableau de bord (revenu total, MRR, abonnements actifs…).
+  static Future<RevenueOverview> fetchAnalyticsOverview() async {
+    final response = await _authenticatedRequest('GET', analyticsOverviewEndpoint);
+    if (response.statusCode == 200) {
+      return RevenueOverview.fromJson(jsonDecode(response.body));
+    }
+    throw ApiError.fromJson(jsonDecode(response.body));
+  }
+
+  /// Série mensuelle du revenu (pour le graphe), sur [months] mois.
+  static Future<RevenueTimeseries> fetchRevenueTimeseries({int months = 6}) async {
+    final response = await _authenticatedRequest(
+      'GET', '$analyticsRevenueEndpoint?months=$months',
+    );
+    if (response.statusCode == 200) {
+      return RevenueTimeseries.fromJson(jsonDecode(response.body));
+    }
+    throw ApiError.fromJson(jsonDecode(response.body));
+  }
+
+  /// Répartition des abonnements actifs par tier.
+  static Future<SubscriptionsBreakdown> fetchSubscriptionsBreakdown() async {
+    final response = await _authenticatedRequest('GET', analyticsSubscriptionsEndpoint);
+    if (response.statusCode == 200) {
+      return SubscriptionsBreakdown.fromJson(jsonDecode(response.body));
+    }
+    throw ApiError.fromJson(jsonDecode(response.body));
   }
 
   // ============================================

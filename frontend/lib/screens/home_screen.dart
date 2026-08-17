@@ -5,10 +5,15 @@ import '../models/user_models.dart';
 import '../widgets/shimmer_widget.dart';
 import 'search_screen.dart';
 import 'review_screen.dart'; // Import the new review screen
-import 'available_routes_screen.dart';
 import '../screens/payment_screen.dart';
 import '../widgets/premium_modal_widget.dart';
 import '../widgets/whatsapp_contact_button.dart';
+import '../models/search_models.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/app_colors.dart';
+import '../widgets/ui_kit.dart';
+import '../widgets/stat_tile.dart';
+import 'guide_profile_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -27,17 +32,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _lastGuideData; // Add this line
   String? _lastGuidePhone; // ✅ Numéro WhatsApp du dernier guide contacté
 
+  // ── Explore (données réelles pour l'accueil touriste, style Stitch) ──
+  List<dynamic> _trending = [];            // trajets actifs (routes/all)
+  List<SearchGuideResult> _experts = [];   // guides vérifiés
+  final List<String> _regions = ['Sahara', 'Atlas', 'Villes impériales', 'Souks'];
+
 
 
   // Couleurs du design system
-  static const Color primaryColor = Color(0xFF2D6A4F);
-  static const Color secondaryColor = Color(0xFF1B4332);
+  static const Color primaryColor = Color(0xFF004B87);
+  static const Color secondaryColor = Color(0xFF00325C);
   static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color textDark = Color(0xFF2B2D42);
-  static const Color textLight = Color(0xFF8D99AE);
+  static const Color textDark = Color(0xFF1A1C1E);
+  static const Color textLight = Color(0xFF6B7280);
   static const Color warningColor = Color(0xFFFF9800);
   static const Color errorColor = Color(0xFFE63946);
-  static const Color successColor = Color(0xFF2D6A4F); // Using primary color as success for consistency, or a green
+  static const Color successColor = Color(0xFF004B87); // Using primary color as success for consistency, or a green
   static const Color starColor       = Color(0xFFFFC107);
 
 
@@ -50,6 +60,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadUserProfile();
     _loadLastGuide(); // ✅ Charger le dernier guide au démarrage
+    _loadExplore();   // ✅ Trajets tendance + experts (accueil touriste)
+  }
+
+  Future<void> _loadExplore() async {
+    try {
+      final trending = await ApiService.fetchAllRoutes(limit: 6);
+      final experts = await ApiService.searchGuides(verifiedOnly: true, limit: 6);
+      if (!mounted) return;
+      setState(() {
+        _trending = trending;
+        _experts = experts;
+      });
+    } catch (_) {
+      // Best-effort : l'accueil reste utilisable même si l'explore échoue.
+    }
   }
 
   Future<void> _loadLastGuide() async {
@@ -354,40 +379,38 @@ print('DEBUG URL IMAGE: $imageUrl');
   // ✅ AJOUT POUR ADMIN - Nouvelle méthode AppBar
   // ============================================
   PreferredSizeWidget _buildAppBar() {
+    final onHome = _currentIndex == 0;
     return AppBar(
-      title: Text(
-        _currentIndex == 0
-            ? 'Accueil'
-            : _currentIndex == 1
-                ? (_userProfile!.user.role == 'guide' ? 'Agenda' : 'Réservations')
-                : 'Profil',
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      backgroundColor: primaryColor,
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: AppColors.surface,
       elevation: 0,
+      scrolledUnderElevation: 0,
+      titleSpacing: 16,
+      shape: const Border(bottom: BorderSide(color: AppColors.cardBorder)),
+      title: onHome
+          ? const AppLogo()
+          : Text(
+              _currentIndex == 1
+                  ? (_userProfile!.user.role == 'guide' ? 'Agenda' : 'Voyages')
+                  : 'Profil',
+              style: AppTextStyles.headlineMd.copyWith(fontSize: 20),
+            ),
       actions: [
-        // ✅ Bouton Admin (visible uniquement si role = 'admin')
         if (_userProfile?.user.isAdmin == true)
           IconButton(
-            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+            icon: const Icon(Icons.admin_panel_settings, color: AppColors.primary),
             tooltip: 'Dashboard Admin',
-            onPressed: () {
-              Navigator.pushNamed(context, '/admin');
-            },
+            onPressed: () => Navigator.pushNamed(context, '/admin'),
           ),
-        // Bouton notifications (tous les utilisateurs)
         IconButton(
-          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+          icon: const Icon(Icons.notifications_outlined, color: AppColors.ink),
           onPressed: () {
-            // TODO: Implémenter les notifications
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Notifications à venir')),
             );
           },
         ),
+        const SizedBox(width: 4),
       ],
     );
   }
@@ -473,102 +496,42 @@ print('DEBUG URL IMAGE: $imageUrl');
   // 🎒 DASHBOARD TOURISTE
   // ============================================
   Widget _buildTouristDashboard() {
-    final user = _userProfile!.user;
-    final stats = _userProfile!.stats ?? {};
-
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          // Header avec nom complet
+          // Hero Stitch (surface blanche : titre + sous-titre + recherche)
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor, secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
+              color: AppColors.surface,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Bonjour,',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            // ✅ CORRECTION: Affichage du nom complet
-                            Text(
-                              user.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          user.fullName[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: primaryColor,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Barre de recherche
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 4,
+                  Text('Découvrez l\'âme du Maroc',
+                      style: AppTextStyles.headlineMd.copyWith(fontSize: 26)),
+                  const SizedBox(height: 6),
+                  Text('Des voyages sur mesure par des experts locaux vérifiés.',
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => const SearchScreen()),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, color: textLight),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            readOnly: true, // Make it act like a button
-                            decoration: InputDecoration(
-                              hintText: 'Rechercher une destination...',
-                              hintStyle: TextStyle(color: textLight),
-                              border: InputBorder.none,
-                            ),
-                            onTap: () {
-      // Navigate to SearchScreen instead of showing SnackBar
-                                Navigator.push(
-                                  context,
-                                   MaterialPageRoute(builder: (context) => const SearchScreen()),
-                                );
-                            },
-                          ),
-                        ),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, color: AppColors.textLight, size: 20),
+                          const SizedBox(width: 10),
+                          Text('Rechercher une destination…',
+                              style: AppTextStyles.bodyLg.copyWith(color: AppColors.textLight)),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -576,121 +539,19 @@ print('DEBUG URL IMAGE: $imageUrl');
             ),
           ),
 
-          // Statistiques
-          SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.4,
-              ),
-              delegate: SliverChildListDelegate([
-                _buildStatCard(
-                  icon: Icons.bookmark,
-                  title: 'Réservations',
-                  value: stats['total_bookings']?.toString() ?? '0',
-                  color: primaryColor,
-                ),
-                _buildStatCard(
-                  icon: Icons.favorite,
-                  title: 'Favoris',
-                  value: stats['favorites']?.toString() ?? '0',
-                  color: Colors.red,
-                ),
-              ]),
-            ),
-          ),
-
           // ✅ Section Guides avec bouton Voir trajet
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Découvrir les trajets',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Carte du trajet
-                  InkWell(
-                    onTap: () {
-                      // Navigation vers AvailableRoutesScreen
-                      Navigator.pushNamed(context, '/available_routes_screen');
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: primaryColor.withOpacity(0.2),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.explore,        // ✅ CHANGÉ : Icons.map → Icons.explore
-                              color: primaryColor,
-                              size: 32,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Découvrir les circuits',  // ✅ CHANGÉ
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: textDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Explorez tous les itinéraires disponibles',  // ✅ CHANGÉ
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: textLight,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            color: primaryColor,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 8),
+                  _exploreRegions(),
+                  const SizedBox(height: 24),
+                  _trendingSection(),
+                  const SizedBox(height: 24),
+                  _expertsSection(),
                   const SizedBox(height: 16),
 
                   // ── ✅ SECTION LAISSER UN AVIS ──────────────────────────
@@ -704,6 +565,120 @@ print('DEBUG URL IMAGE: $imageUrl');
       ),
     );
   }
+  // ── Explore : régions ────────────────────────────────────────────────────
+  Widget _exploreRegions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Explorer par région'),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _regions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) => AppFilterChip(
+              label: _regions[i],
+              icon: Icons.place_outlined,
+              onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const SearchScreen()),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Explore : trajets tendance (réels) ───────────────────────────────────
+  Widget _trendingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Trajets tendance',
+          actionLabel: 'Voir tout',
+          onAction: () => Navigator.pushNamed(context, '/available_routes_screen'),
+        ),
+        if (_trending.isEmpty)
+          Text('Aucun trajet disponible pour le moment.', style: AppTextStyles.bodySm)
+        else
+          Column(
+            children: _trending
+                .take(4)
+                .map((item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _trendingCard(item as Map<String, dynamic>),
+                    ))
+                .toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _trendingCard(Map<String, dynamic> item) {
+    final route = (item['route'] ?? {}) as Map<String, dynamic>;
+    final name = (item['guide_name'] ?? 'Guide') as String;
+    final start = (route['start_address'] ?? '') as String;
+    final end = (route['end_address'] ?? '') as String;
+    final price = route['price'];
+    final rating = (item['guide_rating'] ?? 0).toDouble();
+    final photo = item['guide_photo_url'] as String?;
+    final imageUrl = (photo != null && photo.isNotEmpty)
+        ? (photo.startsWith('http') ? photo : '${ApiService.baseUrl}/$photo')
+        : null;
+    return ExperienceCard(
+      title: (start.isEmpty && end.isEmpty) ? 'Itinéraire guidé' : '$start → $end',
+      imageUrl: imageUrl,
+      priceLabel: price != null ? '${(price as num).toStringAsFixed(0)} DH' : null,
+      byline: 'par $name',
+      rating: rating > 0 ? rating : null,
+      onTap: () => Navigator.pushNamed(context, '/available_routes_screen'),
+    );
+  }
+
+  // ── Explore : experts locaux (réels) ─────────────────────────────────────
+  Widget _expertsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Rencontrez des experts locaux'),
+        if (_experts.isEmpty)
+          Text('Bientôt de nouveaux guides vérifiés.', style: AppTextStyles.bodySm)
+        else
+          SizedBox(
+            height: 236,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _experts.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) => _expertCard(_experts[i]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _expertCard(SearchGuideResult r) {
+    final g = r.guide;
+    final photo = g.profilePhotoUrl;
+    final avatarUrl = (photo != null && photo.isNotEmpty)
+        ? (photo.startsWith('http') ? photo : '${ApiService.baseUrl}/$photo')
+        : null;
+    return ExpertCard(
+      name: r.fullName,
+      region: g.citiesCovered.join(', '),
+      avatarUrl: avatarUrl,
+      verified: g.isVerified,
+      rating: g.totalReviews > 0 ? g.averageRating : null,
+      reviews: g.totalReviews,
+      quote: g.bio,
+      onTap: () => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => GuideProfileScreen(guide: r)),
+      ),
+    );
+  }
+
   // ── Section "Laisser un avis" dans le dashboard touriste ─────────────────
   Widget _buildLeaveReviewSection() {
     return Container(
@@ -846,78 +821,40 @@ print('DEBUG URL IMAGE: $imageUrl');
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          // Header avec nom complet
+          // Salutation Stitch (surface blanche)
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor, secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              color: AppColors.surface,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  _buildProfileAvatarWithFallback(
+                    fullName: user.fullName,
+                    photoUrl: guide?.profilePhotoUrl,
+                    radius: 26,
+                    fontSize: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Bonjour,', style: AppTextStyles.bodySm),
+                        Row(
                           children: [
-                            Text(
-                              'Bonjour,',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                              ),
+                            Flexible(
+                              child: Text(user.fullName,
+                                  style: AppTextStyles.headlineMd.copyWith(fontSize: 22),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
-                            const SizedBox(height: 4),
-                            // ✅ CORRECTION: Affichage du nom complet
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    user.fullName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                // Ajout du badge si Premium est actif
-                                if (guide?.isPremiumActive ?? false) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white24,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.workspace_premium,
-                                      color: Color(0xFFFFD700), // Couleur Or
-                                      size: 24,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                            if (guide?.isPremiumActive ?? false) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.workspace_premium, color: AppColors.sand, size: 20),
+                            ],
                           ],
                         ),
-                      ),
-                      _buildProfileAvatarWithFallback(
-                        fullName: user.fullName,
-                        photoUrl: guide?.profilePhotoUrl,
-                        radius: 28,
-                        fontSize: 24,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -979,44 +916,38 @@ print('DEBUG URL IMAGE: $imageUrl');
             SliverToBoxAdapter(
               child: _buildGuideRatingBanner(guide),
             ),
-          // Statistiques
+          // KPI Stitch
           SliverPadding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.4,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.55,
               ),
               delegate: SliverChildListDelegate([
-                _buildStatCard(
-                  icon: Icons.calendar_today,
-                  title: 'Réservations',
+                StatTile(
+                  label: 'Réservations',
                   value: stats['total_bookings']?.toString() ?? '0',
-                  color: primaryColor,
+                  icon: Icons.calendar_today_outlined,
                 ),
-                _buildStatCard(
-                  icon: Icons.eco,
-                  title: 'Éco-Score',
+                StatTile(
+                  label: 'Éco-Score',
                   value: guide?.ecoScore.toString() ?? '0',
-                  color: Colors.green,
+                  icon: Icons.eco_outlined,
                 ),
-                // ✅ Stat card avec vraie note depuis GuideProfile
-                _buildStatCard(
-                  icon: Icons.star,
-                  title: 'Note moyenne',
+                StatTile(
+                  label: 'Note moyenne',
                   value: guide != null && guide.totalReviews > 0
                       ? guide.averageRating.toStringAsFixed(1)
                       : '—',
-                  color: starColor,
+                  icon: Icons.star_outline,
                 ),
-                
-                _buildStatCard(
-                  icon: Icons.attach_money,
-                  title: 'Revenus',
+                StatTile(
+                  label: 'Revenus',
                   value: '${stats['total_revenue'] ?? 0} DH',
-                  color: Colors.blue,
+                  icon: Icons.payments_outlined,
                 ),
               ]),
             ),
@@ -1734,15 +1665,18 @@ print('DEBUG URL IMAGE: $imageUrl');
       unselectedItemColor: textLight,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Accueil',
+          icon: Icon(Icons.explore_outlined),
+          activeIcon: Icon(Icons.explore),
+          label: 'Explorer',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.bookmark),
-          label: 'Réservations',
+          icon: Icon(Icons.luggage_outlined),
+          activeIcon: Icon(Icons.luggage),
+          label: 'Voyages',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
           label: 'Profil',
         ),
       ],

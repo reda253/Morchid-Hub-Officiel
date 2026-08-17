@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../services/admin_service.dart';
 import '../models/admin_models.dart';
+import '../widgets/ui_kit.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -15,8 +16,12 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   bool _isLoading = false;
   
   List<UserData> _users = [];
-  List<GuideProfile> _pendingGuides = [];
   List<SupportMessage> _supportMessages = [];
+
+  // Sous-filtre de l'onglet Approbations (Stitch : Pending / Approved / Rejected)
+  String _guideFilter = 'pending';
+  List<GuideProfile> _guidesForFilter = [];
+  bool _loadingGuides = false;
   
   // Dashboard stats
   int _totalUsers = 0;
@@ -47,7 +52,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       if (!mounted) return;
       setState(() {
         _users = users;
-        _pendingGuides = pending;
+        _guidesForFilter = pending;   // filtre par défaut = pending
+        _guideFilter = 'pending';
         _supportMessages = support;
         _totalUsers = users.length;
         _activeGuides = users.where((u) => u.isActive).length;
@@ -66,6 +72,30 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadGuidesByFilter(String status) async {
+    setState(() {
+      _guideFilter = status;
+      _loadingGuides = true;
+    });
+    try {
+      final guides = await AdminService.fetchGuidesByStatus(status);
+      if (!mounted) return;
+      setState(() {
+        _guidesForFilter = guides;
+        _loadingGuides = false;
+        if (status == 'pending') {
+          _pendingApprovals = guides.length;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingGuides = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+      );
     }
   }
 
@@ -91,6 +121,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.insights, color: Colors.white),
+            tooltip: 'Tableau de bord (revenu & abonnements)',
+            onPressed: () => Navigator.pushNamed(context, '/admin/analytics'),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
@@ -120,7 +155,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   controller: _tabController,
                   children: [
                     _buildUsersList(),
-                    _buildPendingGuidesList(),
+                    _buildGuideApprovalsTab(),
                     _buildSupportList(),
                   ],
                 ),
@@ -229,101 +264,127 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   // LISTE DES GUIDES EN ATTENTE (AVEC VISUALISATION)
   // ============================================
   
-  Widget _buildPendingGuidesList() {
-    if (_pendingGuides.isEmpty) {
-      return const Center(
-        child: Text(
-          'Aucun guide en attente', 
-          style: TextStyle(color: AppColors.textLight),
+  Widget _buildGuideApprovalsTab() {
+    const filters = {
+      'pending': 'En attente',
+      'approved': 'Approuvés',
+      'rejected': 'Rejetés',
+    };
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: filters.entries.map((e) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(e.value),
+                  selected: _guideFilter == e.key,
+                  onSelected: (_) => _loadGuidesByFilter(e.key),
+                ),
+              );
+            }).toList(),
+          ),
         ),
-      );
-    }
+        Expanded(
+          child: _loadingGuides
+              ? const Center(child: CircularProgressIndicator())
+              : _guidesForFilter.isEmpty
+                  ? Center(
+                      child: Text('Aucun guide (${filters[_guideFilter]})',
+                          style: const TextStyle(color: AppColors.textLight)),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _guidesForFilter.length,
+                      itemBuilder: (context, i) => _buildGuideCard(_guidesForFilter[i]),
+                    ),
+        ),
+      ],
+    );
+  }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _pendingGuides.length,
-      itemBuilder: (context, index) {
-        final guide = _pendingGuides[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildGuideCard(GuideProfile guide) {
+    final isPending = guide.approvalStatus == 'pending';
+    final isRejected = guide.approvalStatus == 'rejected';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.cardBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                // En-tête avec bouton visualisation
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Expérience: ${guide.yearsOfExperience} ans',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppColors.textDark,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.visibility, color: AppColors.primary),
-                      onPressed: () => _showGuideDocuments(guide),
-                      tooltip: 'Voir les documents',
-                    ),
-                  ],
+                Expanded(
+                  child: Text('Expérience : ${guide.yearsOfExperience} ans',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark)),
                 ),
-                const SizedBox(height: 8),
-                
-                // Bio
-                Text(
-                  guide.bio,
-                  style: const TextStyle(color: AppColors.textLight),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                
-                // Spécialités
-                Wrap(
-                  spacing: 8,
-                  children: guide.specialties.map((s) => Chip(
-                    label: Text(s, style: const TextStyle(fontSize: 12)),
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                    labelStyle: const TextStyle(color: AppColors.primary),
-                  )).toList(),
-                ),
-                const SizedBox(height: 12),
-                
-                // Boutons d'action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _handleReject(guide.id),
-                      icon: const Icon(Icons.close, size: 18),
-                      label: const Text('Rejeter'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _handleApprove(guide.id),
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Approuver'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
+                StatusBadge(status: guide.approvalStatus),
+                IconButton(
+                  icon: const Icon(Icons.visibility, color: AppColors.primary),
+                  onPressed: () => _showGuideDocuments(guide),
+                  tooltip: 'Voir les documents',
                 ),
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 8),
+            Text(guide.bio, style: const TextStyle(color: AppColors.textLight), maxLines: 3, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: guide.specialties
+                  .map((s) => Chip(
+                        label: Text(s, style: const TextStyle(fontSize: 12)),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        labelStyle: const TextStyle(color: AppColors.primary),
+                      ))
+                  .toList(),
+            ),
+            if (isRejected && (guide.rejectionReason ?? '').isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                ),
+                child: Text('Motif : ${guide.rejectionReason}',
+                    style: const TextStyle(color: AppColors.error, fontSize: 13)),
+              ),
+            ],
+            if (isPending) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _handleReject(guide.id),
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Rejeter'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _handleApprove(guide.id),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Approuver'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
