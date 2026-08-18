@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_models.dart';
+import '../screens/profile_screen.dart';
 import '../theme/app_text_styles.dart';
 
 /// Une destination de la barre de navigation basse.
@@ -48,7 +49,8 @@ final List<ShellDestination> _touristDestinations = [
     icon: Icons.person_outline,
     activeIcon: Icons.person,
     label: 'Profil',
-    builder: (profile, onNavigate) => _placeholder('Profil'),
+    builder: (profile, onNavigate) =>
+        ProfileScreen(profile: profile, onNavigate: onNavigate),
   ),
 ];
 
@@ -69,7 +71,8 @@ final List<ShellDestination> _guideDestinations = [
     icon: Icons.person_outline,
     activeIcon: Icons.person,
     label: 'Profil',
-    builder: (profile, onNavigate) => _placeholder('Profil'),
+    builder: (profile, onNavigate) =>
+        ProfileScreen(profile: profile, onNavigate: onNavigate),
   ),
 ];
 
