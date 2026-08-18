@@ -287,16 +287,22 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                   children: [
                     Text('Actions Rapides', style: AppTextStyles.headlineMd.copyWith(fontSize: 20)),
                     const SizedBox(height: 16),
-                    ActionRow(
-                      icon: Icons.verified_user,
-                      title: 'Demander la certification',
-                      subtitle: 'Obtenez votre badge officiel',
-                      enabled: guide?.isVerified == false,
-                      onTap: () {
-                        Navigator.pushNamed(context, AppRoutes.verifyGuide);
-                      },
-                    ),
-                    const SizedBox(height: 16),
+                    // Masquée dès que le guide est certifié : une fois le badge
+                    // obtenu, demander la certification n'a plus d'objet. La
+                    // ligne était auparavant affichée grisée (`enabled: false`),
+                    // ce qui laissait une action morte sur le tableau de bord.
+                    // Même condition qu'à la ligne 216 (bandeau de statut).
+                    if (guide != null && !guide.isVerified) ...[
+                      ActionRow(
+                        icon: Icons.verified_user,
+                        title: 'Demander la certification',
+                        subtitle: 'Obtenez votre badge officiel',
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoutes.verifyGuide);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     ActionRow(
                       icon: Icons.map,
                       title: 'Définir mon trajet',
