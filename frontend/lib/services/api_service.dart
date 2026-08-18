@@ -230,7 +230,7 @@ class ApiService {
         // Autre erreur
         throw ApiError(
           errorCode: 'UNKNOWN_ERROR',
-          message: 'Une erreur inattenue est survenue (${response.statusCode})',
+          message: 'Une erreur inattendue est survenue (${response.statusCode})',
         );
       }
     } on http.ClientException catch (e) {
