@@ -808,3 +808,76 @@ class StatusBadge extends StatelessWidget {
     );
   }
 }
+
+// ── Carte d'informations (profil, détails guide) ────────────────────────────
+class InfoCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const InfoCard({Key? key, required this.title, required this.children}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.titleMd),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+// ── Ligne label / valeur avec icône ─────────────────────────────────────────
+class InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+  const InfoRow({
+    Key? key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.textLight),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.labelCaps.copyWith(letterSpacing: 0)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.bodyLg.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: valueColor ?? AppColors.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
