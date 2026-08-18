@@ -30,4 +30,17 @@ class AppTextStyles {
   static TextStyle numberXl = GoogleFonts.epilogue(
     fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.ink,
   );
+  static TextStyle displayMd = GoogleFonts.epilogue(
+    fontSize: 32, fontWeight: FontWeight.w700, height: 1.1, color: AppColors.ink,
+  );
+  static TextStyle titleSm = GoogleFonts.manrope(
+    fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink,
+  );
+  static TextStyle bodyXs = GoogleFonts.manrope(
+    fontSize: 13, fontWeight: FontWeight.w400, height: 1.4,
+    color: AppColors.textLight,
+  );
+  static TextStyle numberLg = GoogleFonts.epilogue(
+    fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.ink,
+  );
 }

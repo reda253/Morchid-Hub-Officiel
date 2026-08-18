@@ -39,4 +39,23 @@ class AppColors {
   static const Color error = Color(0xFFBA1A1A);
   static const Color success = Color(0xFF00A86B);
   static const Color warning = Color(0xFFB25E00);
+
+  // ── Rôles sémantiques ─────────────────────────────────────────────────
+  /// Jaune des étoiles de notation. Était codé en dur à l'identique dans
+  /// review_screen, guide_profile_screen et available_routes_screen.
+  static const Color star = Color(0xFFFFC107);
+
+  /// Vert de marque WhatsApp. Imposé par WhatsApp, ne pas remplacer par
+  /// `success` même si les deux sont verts.
+  static const Color whatsapp = Color(0xFF25D366);
+
+  /// Ombre portée standard des cartes (noir à 10 %).
+  static const Color shadow = Color(0x1A000000);
+
+  /// Texte et icônes posés sur une PHOTO ou un dégradé arbitraire.
+  /// Même valeur que [onPrimary] aujourd'hui, mais rôle différent :
+  /// [onPrimary] = « sur un aplat primary », [onImage] = « sur une image ».
+  /// Ne pas fusionner : un futur passage contraste/dark-mode déplacera l'un
+  /// sans l'autre.
+  static const Color onImage = Color(0xFFFFFFFF);
 }
