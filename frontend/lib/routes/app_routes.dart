@@ -10,6 +10,10 @@
 class AppRoutes {
   AppRoutes._();
 
+  /// Route initiale de l'application. `SplashScreen` la consomme pour décider
+  /// entre [login] et [shell] selon la session enregistrée.
+  static const String splash = '/';
+
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';

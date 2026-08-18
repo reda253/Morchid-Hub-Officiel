@@ -37,10 +37,10 @@ class MorchidHubApp extends StatelessWidget {
       theme: AppTheme.light,
       
       // Routes de navigation
-      initialRoute: '/',
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: (settings) {
   switch (settings.name) {
-    case '/':
+    case AppRoutes.splash:
       return MaterialPageRoute(builder: (_) => const SplashScreen());
 
     case AppRoutes.login:
