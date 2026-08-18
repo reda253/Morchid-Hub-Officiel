@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_models.dart';
+import '../screens/agenda_screen.dart';
+import '../screens/explore_screen.dart';
+import '../screens/guide_dashboard_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/trips_screen.dart';
 import '../theme/app_text_styles.dart';
@@ -32,7 +35,8 @@ final List<ShellDestination> _touristDestinations = [
     icon: Icons.explore_outlined,
     activeIcon: Icons.explore,
     label: 'Explorer',
-    builder: (profile, onNavigate) => _placeholder('Explorer'),
+    builder: (profile, onNavigate) =>
+        ExploreScreen(profile: profile, onNavigate: onNavigate),
   ),
   ShellDestination(
     icon: Icons.search_outlined,
@@ -60,13 +64,15 @@ final List<ShellDestination> _guideDestinations = [
     icon: Icons.dashboard_outlined,
     activeIcon: Icons.dashboard,
     label: 'Dashboard',
-    builder: (profile, onNavigate) => _placeholder('Dashboard'),
+    builder: (profile, onNavigate) =>
+        GuideDashboardScreen(profile: profile, onNavigate: onNavigate),
   ),
   ShellDestination(
     icon: Icons.calendar_today_outlined,
     activeIcon: Icons.calendar_today,
     label: 'Agenda',
-    builder: (profile, onNavigate) => _placeholder('Agenda'),
+    builder: (profile, onNavigate) =>
+        AgendaScreen(profile: profile, onNavigate: onNavigate),
   ),
   ShellDestination(
     icon: Icons.person_outline,
