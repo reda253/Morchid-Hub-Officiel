@@ -7,7 +7,7 @@ le service lui-même. Les gardes (`require_admin`) factorisent le contrôle de r
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, is_admin_email
 from ..config import settings
 from ..database import get_db
 from ..exceptions import ForbiddenError
@@ -69,8 +69,7 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     La comparaison est insensible à la casse et aux espaces. Une liste vide ou
     non configurée n'autorise personne (fail closed), tout comme un email nul.
     """
-    email = (current_user.email or "").strip().lower()
-    if not email or email not in settings.admin_emails_list:
+    if not is_admin_email(current_user):
         raise ForbiddenError(
             "FORBIDDEN", "Seuls les administrateurs peuvent accéder à cette section"
         )

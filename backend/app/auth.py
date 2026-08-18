@@ -204,3 +204,20 @@ def get_current_user(
         )
     
     return user
+
+# ============================================
+# AUTORISATION ADMINISTRATEUR
+# ============================================
+
+def is_admin_email(user) -> bool:
+    """Seule autorité pour « ce compte est-il administrateur ? ».
+
+    La source de vérité est la liste blanche `ADMIN_EMAILS` (config), jamais la
+    colonne `user.is_admin` — celle-ci n'est qu'un cache rafraîchi à la
+    connexion, destiné à l'affichage côté client, et elle dérive dès qu'un
+    email entre ou sort de la liste pendant qu'un JWT reste valide.
+
+    Tout contrôle d'accès doit passer par ici (ou par `require_admin`, qui
+    l'appelle). Ne jamais lire `user.is_admin` pour décider d'un droit.
+    """
+    return (getattr(user, "email", None) or "").strip().lower() in settings.admin_emails_list

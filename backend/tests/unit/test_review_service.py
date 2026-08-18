@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.config import settings
 from app.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
 from app.schemas import ReviewCreate
 from app.services.review_service import ReviewService
@@ -98,7 +99,9 @@ def test_delete_review_not_owner_not_admin_forbidden():
     assert exc.value.error_code == "FORBIDDEN"
 
 
-def test_delete_review_admin_can_delete_others():
+def test_delete_review_admin_can_delete_others(monkeypatch):
+    """Un administrateur supprime l'avis d'autrui — droit tiré de ADMIN_EMAILS."""
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", "boss@morchid.local")
     svc = _service()
     svc.reviews.get_by_id.return_value = SimpleNamespace(
         id="rev1", guide_id="g1", tourist_id="someone_else"
@@ -107,8 +110,34 @@ def test_delete_review_admin_can_delete_others():
         id="g1", total_reviews=1, average_rating=5.0
     )
     svc.reviews.rating_aggregates.return_value = (0, None)
-    admin = SimpleNamespace(id="a1", role="admin", is_admin=True)
+    # `is_admin=False` et `role="tourist"` volontairement : seul l'email compte.
+    # Si quelqu'un remet la colonne dans delete_review, ce test doit échouer.
+    admin = SimpleNamespace(
+        id="a1", role="tourist", is_admin=False, email="boss@morchid.local"
+    )
 
     svc.delete_review("rev1", admin)  # ne lève pas
 
     svc.reviews.delete.assert_called_once()
+
+
+def test_delete_review_is_admin_column_alone_grants_nothing(monkeypatch):
+    """La colonne `is_admin` ne donne aucun droit : elle n'est qu'un cache.
+
+    Elle n'est rafraîchie qu'à la connexion, donc elle dérive dès qu'un email
+    quitte ADMIN_EMAILS pendant qu'un JWT reste valide. `delete_review` doit
+    interroger la liste blanche, jamais la colonne.
+    """
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", "")
+    svc = _service()
+    svc.reviews.get_by_id.return_value = SimpleNamespace(
+        id="rev1", guide_id="g1", tourist_id="someone_else"
+    )
+    stale = SimpleNamespace(
+        id="a1", role="administrator", is_admin=True, email="ex.admin@morchid.local"
+    )
+
+    with pytest.raises(ForbiddenError):
+        svc.delete_review("rev1", stale)
+
+    svc.reviews.delete.assert_not_called()

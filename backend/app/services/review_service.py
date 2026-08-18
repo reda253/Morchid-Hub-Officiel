@@ -5,6 +5,7 @@ from typing import List, Tuple
 from sqlalchemy.orm import Session
 
 from ..exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
+from ..auth import is_admin_email
 from ..models import Guide, Review, User
 from ..repositories.guide_repository import GuideRepository
 from ..repositories.review_repository import ReviewRepository
@@ -71,7 +72,10 @@ class ReviewService:
         if not review:
             raise NotFoundError("REVIEW_NOT_FOUND", "Avis introuvable")
 
-        if review.tourist_id != current_user.id and not current_user.is_admin:
+        # `is_admin_email` et non `current_user.is_admin` : la colonne n'est
+        # qu'un cache rafraîchi à la connexion et dérive dès qu'un email entre
+        # ou sort de ADMIN_EMAILS pendant qu'un JWT reste valide.
+        if review.tourist_id != current_user.id and not is_admin_email(current_user):
             raise ForbiddenError("FORBIDDEN", "Vous ne pouvez supprimer que vos propres avis")
 
         guide_id = review.guide_id
