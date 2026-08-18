@@ -964,3 +964,89 @@ class ActionButton extends StatelessWidget {
     );
   }
 }
+
+// ── Ligne d'action pleine largeur (dashboard guide) ─────────────────────────
+///
+/// [enabled] est une règle métier, pas une décoration : une action indisponible
+/// doit être *visiblement* indisponible. Ne pas remplacer par un `onTap` inerte.
+class ActionRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  const ActionRow({
+    Key? key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.enabled = true,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: enabled ? AppColors.cardBorder : AppColors.outline,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: enabled
+                      ? AppColors.primaryContainer
+                      : AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: enabled ? AppColors.primary : AppColors.textLight,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.titleMd.copyWith(
+                        fontSize: 16,
+                        color: enabled ? AppColors.ink : AppColors.textLight,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: enabled ? AppColors.primary : AppColors.textLight,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
