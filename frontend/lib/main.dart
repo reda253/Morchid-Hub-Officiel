@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
@@ -36,9 +37,12 @@ class MorchidHubApp extends StatelessWidget {
       theme: AppTheme.light,
       
       // Routes de navigation
-      initialRoute: AppRoutes.login,
+      initialRoute: '/',
       onGenerateRoute: (settings) {
   switch (settings.name) {
+    case '/':
+      return MaterialPageRoute(builder: (_) => const SplashScreen());
+
     case AppRoutes.login:
       return MaterialPageRoute(builder: (_) => const LoginScreen());
 
