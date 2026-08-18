@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/user_models.dart';
 import '../screens/profile_screen.dart';
+import '../screens/trips_screen.dart';
 import '../theme/app_text_styles.dart';
 
 /// Une destination de la barre de navigation basse.
@@ -43,7 +44,7 @@ final List<ShellDestination> _touristDestinations = [
     icon: Icons.luggage_outlined,
     activeIcon: Icons.luggage,
     label: 'Voyages',
-    builder: (profile, onNavigate) => _placeholder('Voyages'),
+    builder: (profile, onNavigate) => TripsScreen(onNavigate: onNavigate),
   ),
   ShellDestination(
     icon: Icons.person_outline,
