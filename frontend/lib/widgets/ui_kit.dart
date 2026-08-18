@@ -881,3 +881,86 @@ class InfoRow extends StatelessWidget {
     );
   }
 }
+
+// ── Avatar de repli : initiales sur pastille bleue ──────────────────────────
+class DefaultAvatar extends StatelessWidget {
+  final String fullName;
+  final double radius;
+  final double? fontSize;
+  const DefaultAvatar({
+    Key? key,
+    required this.fullName,
+    this.radius = 24,
+    this.fontSize,
+  }) : super(key: key);
+
+  String get _initials {
+    final parts = fullName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.primaryContainer,
+      child: Text(
+        _initials,
+        style: AppTextStyles.titleMd.copyWith(
+          fontSize: fontSize ?? radius * 0.7,
+          color: AppColors.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bouton d'action carré (dashboard guide, profil) ─────────────────────────
+class ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+  const ActionButton({
+    Key? key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 26, color: c),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySm.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
