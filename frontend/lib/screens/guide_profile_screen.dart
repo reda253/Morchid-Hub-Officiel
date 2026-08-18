@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/api_service.dart';
 import '../widgets/whatsapp_contact_button.dart';
-import 'review_screen.dart';
+import '../routes/app_routes.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  GuideProfileScreen
@@ -389,14 +389,13 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
 
   // ── Ouvrir ReviewScreen ───────────────────────────────────────
   Future<void> _openReviewScreen(dynamic guide, String guideName) async {
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.pushNamed<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ReviewScreen(
-          guideId:       guide.id,
-          guideName:     guideName,
-          guidePhotoUrl: guide.profilePhotoUrl,
-        ),
+      AppRoutes.review,
+      arguments: ReviewArgs(
+        guideId: guide.id,
+        guideName: guideName,
+        guidePhotoUrl: guide.profilePhotoUrl,
       ),
     );
     if (result == true) {

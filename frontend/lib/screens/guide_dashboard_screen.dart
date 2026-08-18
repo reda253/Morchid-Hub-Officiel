@@ -7,8 +7,7 @@ import '../utils/app_colors.dart';
 import '../widgets/premium_modal_widget.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/ui_kit.dart';
-import 'payment_screen.dart';
-import 'review_screen.dart';
+import '../routes/app_routes.dart';
 
 /// Tableau de bord du guide.
 ///
@@ -38,14 +37,13 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
     required String guideName,
     String? guidePhotoUrl,
   }) async {
-    await Navigator.push<bool>(
+    await Navigator.pushNamed<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ReviewScreen(
-          guideId: guideId,
-          guideName: guideName,
-          guidePhotoUrl: guidePhotoUrl,
-        ),
+      AppRoutes.review,
+      arguments: ReviewArgs(
+        guideId: guideId,
+        guideName: guideName,
+        guidePhotoUrl: guidePhotoUrl,
       ),
     );
   }
@@ -61,13 +59,12 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
     );
 
     if (result == true && mounted) {
-      Navigator.push(
+      Navigator.pushNamed(
         context,
-        MaterialPageRoute(
-          builder: (context) => const PaymentScreen(
-            amount: 10.0,
-            planName: 'Abonnement Mensuel Guide',
-          ),
+        AppRoutes.payment,
+        arguments: const PaymentArgs(
+          amount: 10.0,
+          planName: 'Abonnement Mensuel Guide',
         ),
       );
     }
@@ -296,7 +293,7 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                       subtitle: 'Obtenez votre badge officiel',
                       enabled: guide?.isVerified == false,
                       onTap: () {
-                        Navigator.pushNamed(context, '/verify-guide');
+                        Navigator.pushNamed(context, AppRoutes.verifyGuide);
                       },
                     ),
                     const SizedBox(height: 16),
@@ -307,7 +304,8 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                       enabled: true,
                       onTap: () async {
                         final result = await Navigator.pushNamed(
-                          context, '/map', arguments: {'mode': 'edit'},
+                          context, AppRoutes.map,
+                          arguments: const MapArgs(mode: 'edit'),
                         );
                         if (result == null) return;
                         try {

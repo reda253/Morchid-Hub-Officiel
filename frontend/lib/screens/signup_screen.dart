@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../widgets/auth_widgets.dart';
 import '../services/api_service.dart';
 import '../models/user_models.dart';
+import '../routes/app_routes.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -310,11 +311,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
-            '/email-verification',
-            arguments: {
-              'email': _emailController.text.trim(),
-              'fullName': _fullNameController.text.trim(),
-            },
+            AppRoutes.emailVerification,
+            arguments: EmailVerificationArgs(
+              email: _emailController.text.trim(),
+              fullName: _fullNameController.text.trim(),
+            ),
           );
         }
       }

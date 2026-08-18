@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/route_models.dart';
 import '../utils/app_colors.dart';
-import 'map_screen.dart';
+import '../routes/app_routes.dart';
 
 /// Écran d'exploration des trajets disponibles
 /// Affiche tous les circuits touristiques avec recherche par ville
@@ -557,14 +557,10 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
     // Convertir GuideRoute en Map compatible avec MapScreen
     final routeData = routeInfo.route.toJson();
 
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (context) => MapScreen(
-          mode: 'view',
-          savedRoute: routeData,
-        ),
-      ),
+      AppRoutes.map,
+      arguments: MapArgs(mode: 'view', savedRoute: routeData),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
 import '../services/api_service.dart';
 import '../models/user_models.dart';
+import '../routes/app_routes.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  PaymentScreen — Morchid Hub Premium
@@ -235,7 +236,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    Navigator.of(context).pushNamedAndRemoveUntil('/shell', (_) => false);
+                    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.shell, (_) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

@@ -3,6 +3,7 @@ import '../utils/app_colors.dart';
 import '../services/admin_service.dart';
 import '../models/admin_models.dart';
 import '../widgets/ui_kit.dart';
+import '../routes/app_routes.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -124,7 +125,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           IconButton(
             icon: const Icon(Icons.insights, color: Colors.white),
             tooltip: 'Tableau de bord (revenu & abonnements)',
-            onPressed: () => Navigator.pushNamed(context, '/admin/analytics'),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminAnalytics),
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart'; // Requires your storage service
 import '../models/admin_models.dart';
+import '../routes/app_routes.dart';
 
 class AuthGuard extends StatefulWidget {
   final Widget child;
@@ -48,7 +49,7 @@ class _AuthGuardState extends State<AuthGuard> {
   }
 
   void _redirectToLogin({String? message}) {
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
     if (message != null) {
        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }

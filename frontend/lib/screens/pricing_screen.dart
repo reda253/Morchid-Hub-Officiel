@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_text_styles.dart';
 import '../widgets/ui_kit.dart';
-import 'payment_screen.dart';
+import '../routes/app_routes.dart';
 
 /// Écran « Grow Your Business » (design Stitch) — sélection de formule Premium.
 /// Free / Pro (399) / Agency (999). Le choix d'un tier payant ouvre le paiement.
@@ -11,9 +11,10 @@ class PricingScreen extends StatelessWidget {
 
   void _choose(BuildContext context, String plan, double amount) {
     if (amount <= 0) return; // Free : aucune action de paiement
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(builder: (_) => PaymentScreen(amount: amount, planName: plan)),
+      AppRoutes.payment,
+      arguments: PaymentArgs(amount: amount, planName: plan),
     );
   }
 

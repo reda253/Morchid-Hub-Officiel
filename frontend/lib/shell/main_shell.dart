@@ -4,6 +4,7 @@ import '../models/user_models.dart';
 import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/error_state.dart';
+import '../routes/app_routes.dart';
 import 'shell_destinations.dart';
 
 /// Coquille applicative : propriétaire unique du profil utilisateur et de
@@ -77,7 +78,7 @@ class _MainShellState extends State<MainShell> {
           error,
           onRetry: _loadProfile,
           onReauth: () => Navigator.of(context)
-              .pushNamedAndRemoveUntil('/login', (route) => false),
+              .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false),
         ),
       );
     }

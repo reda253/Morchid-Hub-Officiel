@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/auth_widgets.dart';
 import '../services/api_service.dart';
+import '../routes/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -89,18 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
 
-        // TODO: Naviguer vers l'écran principal selon le rôle
-        // if (response.user.role == 'guide') {
-        //   Navigator.pushReplacementNamed(context, '/guide_home');
-        // } else {
-        //   Navigator.pushReplacementNamed(context, '/tourist_home');
-        // }
-        
         // Pour l'instant, juste un print
         print('✅ Connexion réussie: ${response.user.email}');
         print('🔑 Token: ${response.accessToken.substring(0, 20)}...');
         // Naviguer vers le Dashboard
-        Navigator.pushReplacementNamed(context, '/shell');
+        Navigator.pushReplacementNamed(context, AppRoutes.shell);
       }
     } catch (e) {
       // Cacher l'indicateur de chargement
@@ -186,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextButton(
                     onPressed: () {
                       // TODO: Naviguer vers l'écran de récupération
-                      Navigator.pushNamed(context, '/forgot-password');
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
                     },
                     child: const Text(
                       'Mot de passe oublié ?',
@@ -255,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     linkText: 'S\'inscrire',
                     onTap: () {
                       // Navigation avec animation fluide
-                      Navigator.pushNamed(context, '/signup');
+                      Navigator.pushNamed(context, AppRoutes.signup);
                     },
                   ),
                 ),

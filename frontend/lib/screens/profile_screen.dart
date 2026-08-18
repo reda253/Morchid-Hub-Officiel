@@ -7,8 +7,7 @@ import '../theme/app_text_styles.dart';
 import '../utils/app_colors.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/whatsapp_contact_button.dart';
-import 'review_screen.dart';
-import 'search_screen.dart';
+import '../routes/app_routes.dart';
 
 /// Onglet « Profil » — partagé touriste et guide.
 ///
@@ -50,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (shouldLogout == true) {
       await StorageService.logout();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
     }
   }
 
@@ -59,14 +58,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String guideName,
     String? guidePhotoUrl,
   }) async {
-    await Navigator.push<bool>(
+    await Navigator.pushNamed<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ReviewScreen(
-          guideId: guideId,
-          guideName: guideName,
-          guidePhotoUrl: guidePhotoUrl,
-        ),
+      AppRoutes.review,
+      arguments: ReviewArgs(
+        guideId: guideId,
+        guideName: guideName,
+        guidePhotoUrl: guidePhotoUrl,
       ),
     );
   }
@@ -260,10 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SearchScreen()),
-                    ),
+                    onPressed: () => Navigator.pushNamed(context, AppRoutes.search),
                     icon: const Icon(Icons.star_rounded),
                     label: Text(
                       'Laisser un avis sur un guide',

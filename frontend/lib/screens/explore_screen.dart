@@ -9,9 +9,7 @@ import '../utils/app_colors.dart';
 import '../widgets/error_state.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/whatsapp_contact_button.dart';
-import 'guide_profile_screen.dart';
-import 'review_screen.dart';
-import 'search_screen.dart';
+import '../routes/app_routes.dart';
 
 /// Onglet « Explorer » du touriste.
 ///
@@ -86,14 +84,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
     required String guideName,
     String? guidePhotoUrl,
   }) async {
-    await Navigator.push<bool>(
+    await Navigator.pushNamed<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ReviewScreen(
-          guideId: guideId,
-          guideName: guideName,
-          guidePhotoUrl: guidePhotoUrl,
-        ),
+      AppRoutes.review,
+      arguments: ReviewArgs(
+        guideId: guideId,
+        guideName: guideName,
+        guidePhotoUrl: guidePhotoUrl,
       ),
     );
   }
@@ -116,8 +113,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       style: AppTextStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => Navigator.push(
-                      context, MaterialPageRoute(builder: (_) => const SearchScreen()),
+                    onTap: () => Navigator.pushNamed(
+                      context, AppRoutes.search,
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -171,8 +168,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         const SectionHeader(title: 'Explorer par région'),
         FilterChipBar(
           options: _regions,
-          onSelected: (_) => Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const SearchScreen()),
+          onSelected: (_) => Navigator.pushNamed(
+            context, AppRoutes.search,
           ),
         ),
       ],
@@ -186,7 +183,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         SectionHeader(
           title: 'Trajets tendance',
           actionLabel: 'Voir tout',
-          onAction: () => Navigator.pushNamed(context, '/available_routes_screen'),
+          onAction: () => Navigator.pushNamed(context, AppRoutes.availableRoutes),
         ),
         if (_trending.isEmpty)
           Text('Aucun trajet disponible pour le moment.', style: AppTextStyles.bodySm)
@@ -212,7 +209,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   priceLabel: price != null ? '${(price as num).toStringAsFixed(0)} DH' : null,
                   byline: 'par $name',
                   rating: rating > 0 ? rating : null,
-                  onTap: () => Navigator.pushNamed(context, '/available_routes_screen'),
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.availableRoutes),
                 ),
               );
             }).toList(),
@@ -250,8 +247,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   rating: g.totalReviews > 0 ? g.averageRating : null,
                   reviews: g.totalReviews,
                   quote: g.bio,
-                  onTap: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => GuideProfileScreen(guide: r)),
+                  onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.guideProfile,
+                    arguments: GuideProfileArgs(guide: r),
                   ),
                 );
               },
@@ -300,9 +298,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const SearchScreen()),
-              ),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.search),
               icon: const Icon(Icons.star_rounded, size: 18),
               label: const Text('Rechercher un guide à noter'),
               style: ElevatedButton.styleFrom(
