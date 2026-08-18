@@ -3,7 +3,7 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/email_verification_screen.dart';
-import 'screens/home_screen.dart';
+import 'shell/main_shell.dart';
 import 'screens/guide_verification_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/admin_screen.dart';
@@ -52,8 +52,8 @@ class MorchidHubApp extends StatelessWidget {
         ),
       );
     
-    case '/home':
-      return MaterialPageRoute(builder: (_) => const HomeScreen());
+    case '/shell':
+      return MaterialPageRoute(builder: (_) => const MainShell());
 
     case '/verify-guide':
       return MaterialPageRoute(

@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
         print('✅ Connexion réussie: ${response.user.email}');
         print('🔑 Token: ${response.accessToken.substring(0, 20)}...');
         // Naviguer vers le Dashboard
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/shell');
       }
     } catch (e) {
       // Cacher l'indicateur de chargement

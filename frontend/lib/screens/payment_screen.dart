@@ -235,7 +235,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.of(ctx).pop();
-                    Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+                    Navigator.of(context).pushNamedAndRemoveUntil('/shell', (_) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

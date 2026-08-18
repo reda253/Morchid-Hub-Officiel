@@ -5,8 +5,8 @@ import '../screens/agenda_screen.dart';
 import '../screens/explore_screen.dart';
 import '../screens/guide_dashboard_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/search_screen.dart';
 import '../screens/trips_screen.dart';
-import '../theme/app_text_styles.dart';
 
 /// Une destination de la barre de navigation basse.
 ///
@@ -27,9 +27,6 @@ class ShellDestination {
   });
 }
 
-Widget _placeholder(String name) =>
-    Center(child: Text(name, style: AppTextStyles.titleMd));
-
 final List<ShellDestination> _touristDestinations = [
   ShellDestination(
     icon: Icons.explore_outlined,
@@ -42,7 +39,7 @@ final List<ShellDestination> _touristDestinations = [
     icon: Icons.search_outlined,
     activeIcon: Icons.search,
     label: 'Recherche',
-    builder: (profile, onNavigate) => _placeholder('Recherche'),
+    builder: (profile, onNavigate) => const SearchScreen(),
   ),
   ShellDestination(
     icon: Icons.luggage_outlined,
