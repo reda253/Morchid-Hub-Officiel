@@ -40,7 +40,24 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> List[str]:
         """Convertit la string CORS_ORIGINS en liste"""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-    
+
+    # ============================================
+    # ADMIN
+    # ============================================
+    # Liste blanche des emails administrateurs (source de vérité unique).
+    # Vide par défaut : aucun compte n'est administrateur tant que la variable
+    # n'est pas renseignée (fail closed).
+    ADMIN_EMAILS: str = ""
+
+    @property
+    def admin_emails_list(self) -> List[str]:
+        """Convertit la string ADMIN_EMAILS en liste d'emails normalisés (minuscules)"""
+        return [
+            email.strip().lower()
+            for email in self.ADMIN_EMAILS.split(",")
+            if email.strip()
+        ]
+
     # ============================================
     # PROJECT INFO
     # ============================================

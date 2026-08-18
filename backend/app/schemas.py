@@ -606,3 +606,37 @@ class SuccessResponse(BaseModel):
     status: str = "success"
     message: str
     data: Optional[dict] = None
+
+
+# ============================================
+# ✅ SCHEMAS CRÉNEAUX (TIME SLOTS) — Phase B / UML
+# ============================================
+
+class TimeSlotCreate(BaseModel):
+    """Corps de POST /api/v1/guides/routes/{route_id}/slots.
+
+    Programme un créneau pour un trajet. RG21 : le backend refuse tout
+    chevauchement avec un créneau existant du même guide.
+    """
+    scheduled_start: datetime = Field(..., description="Début du créneau (ISO 8601)")
+    scheduled_end: datetime = Field(..., description="Fin du créneau (ISO 8601)")
+
+    @validator("scheduled_end")
+    def end_after_start(cls, v, values):
+        start = values.get("scheduled_start")
+        if start is not None and v <= start:
+            raise ValueError("scheduled_end doit être postérieur à scheduled_start")
+        return v
+
+
+class TimeSlotResponse(BaseModel):
+    """Réponse pour un créneau programmé."""
+    id: str
+    route_id: str
+    scheduled_start: datetime
+    scheduled_end: datetime
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
