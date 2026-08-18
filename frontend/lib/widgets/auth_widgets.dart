@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 // Palette unique : la classe AppColors rivale a été supprimée au profit de la
 // palette canonique Stitch. Réexportée pour les écrans qui l'importaient d'ici.
+import '../theme/app_text_styles.dart';
 import '../utils/app_colors.dart';
 export '../utils/app_colors.dart';
+
+import 'inline_error.dart';
 
 // ============================================
 // 📝 CUSTOM TEXT FIELD
@@ -48,12 +51,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         // Label du champ
         Text(
           widget.label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-            letterSpacing: 0.3,
-          ),
+          style: AppTextStyles.titleSm,
         ),
         const SizedBox(height: 8),
         
@@ -84,15 +82,11 @@ class _CustomTextFieldState extends State<CustomTextField> {
               keyboardType: widget.keyboardType,
               maxLines: widget.maxLines,
               textCapitalization: widget.textCapitalization, // ✅ NOUVEAU
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.textDark,
-              ),
+              style: AppTextStyles.bodyLg,
               decoration: InputDecoration(
                 hintText: widget.hint,
-                hintStyle: TextStyle(
-                  color: AppColors.textLight.withAlpha(153),
-                  fontSize: 15,
+                hintStyle: AppTextStyles.bodyLg.copyWith(
+                  color: AppColors.textLight,
                 ),
                 prefixIcon: Icon(
                   widget.prefixIcon,
@@ -118,7 +112,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 
                 // Bordures et remplissage
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.surface,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 18,
@@ -234,6 +228,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
             ],
           ),
           child: Material(
+            // intentionnel : laisse passer le splash de l'InkWell par-dessus le dégradé
             color: Colors.transparent,
             child: InkWell(
               onTap: widget.isLoading ? null : widget.onPressed,
@@ -244,7 +239,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: AppColors.onPrimary,
                           strokeWidth: 2.5,
                         ),
                       )
@@ -254,18 +249,16 @@ class _PrimaryButtonState extends State<PrimaryButton>
                           if (widget.icon != null) ...[
                             Icon(
                               widget.icon,
-                              color: Colors.white,
+                              color: AppColors.onPrimary,
                               size: 22,
                             ),
                             const SizedBox(width: 10),
                           ],
                           Text(
                             widget.text,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
+                            style: AppTextStyles.bodyLg.copyWith(
+                              color: AppColors.onPrimary,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
@@ -299,21 +292,16 @@ class RoleDropdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Je suis',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-            letterSpacing: 0.3,
-          ),
+          style: AppTextStyles.titleSm,
         ),
         const SizedBox(height: 8),
         
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
+            color: AppColors.surface,
             border: Border.all(
               color: AppColors.textLight.withAlpha(51),
               width: 1.5,
@@ -333,12 +321,11 @@ class RoleDropdown extends StatelessWidget {
               ),
               border: InputBorder.none,
               hintText: 'Sélectionnez votre rôle',
-              hintStyle: TextStyle(
-                color: AppColors.textLight.withOpacity(0.6),
-                fontSize: 15,
+              hintStyle: AppTextStyles.bodyLg.copyWith(
+                color: AppColors.textLight,
               ),
             ),
-            dropdownColor: Colors.white,
+            dropdownColor: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
             icon: const Icon(
               Icons.keyboard_arrow_down_rounded,
@@ -362,10 +349,9 @@ class RoleDropdown extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Touriste',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: AppTextStyles.bodySm.copyWith(
                         color: AppColors.textDark,
                       ),
                     ),
@@ -389,10 +375,9 @@ class RoleDropdown extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Guide Touristique',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: AppTextStyles.bodySm.copyWith(
                         color: AppColors.textDark,
                       ),
                     ),
@@ -431,14 +416,11 @@ class TextLink extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           text: normalText,
-          style: const TextStyle(
-            color: AppColors.textLight,
-            fontSize: 14,
-          ),
+          style: AppTextStyles.bodySm,
           children: [
             TextSpan(
               text: linkText,
-              style: const TextStyle(
+              style: AppTextStyles.bodySm.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.underline,
@@ -493,14 +475,9 @@ class _SpecialtiesSelectorState extends State<SpecialtiesSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Spécialités',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-            letterSpacing: 0.3,
-          ),
+          style: AppTextStyles.titleSm,
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -514,7 +491,7 @@ class _SpecialtiesSelectorState extends State<SpecialtiesSelector> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
+                  color: isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? AppColors.primary : AppColors.textLight.withOpacity(0.3),
@@ -536,15 +513,17 @@ class _SpecialtiesSelectorState extends State<SpecialtiesSelector> {
                     Icon(
                       specialty['icon'],
                       size: 18,
-                      color: isSelected ? Colors.white : AppColors.textDark,
+                      color:
+                          isSelected ? AppColors.onPrimary : AppColors.textDark,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       specialty['name'],
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppTextStyles.bodySm.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.textDark,
+                        color: isSelected
+                            ? AppColors.onPrimary
+                            : AppColors.textDark,
                       ),
                     ),
                   ],
@@ -554,22 +533,14 @@ class _SpecialtiesSelectorState extends State<SpecialtiesSelector> {
           }).toList(),
         ),
         if (widget.validator != null)
+          // Le Builder est conservé : il fait rejouer le validateur à chaque
+          // rebuild. Le supprimer figerait le message à sa première valeur.
           Builder(
             builder: (context) {
               final error = widget.validator!(widget.selectedSpecialties);
-              if (error != null) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8, left: 4),
-                  child: Text(
-                    error,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.error,
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
+              // InlineError rend déjà un SizedBox.shrink() si le message est
+              // null ou vide : le test explicite n'a plus lieu d'être.
+              return InlineError(message: error);
             },
           ),
       ],
@@ -642,7 +613,7 @@ class AuthHeader extends StatelessWidget {
             child: const Icon(
               Icons.eco,
               size: 50,
-              color: Colors.white,
+              color: AppColors.onPrimary,
             ),
           ),
         ),
@@ -651,12 +622,7 @@ class AuthHeader extends StatelessWidget {
         // Titre
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-            letterSpacing: -0.5,
-          ),
+          style: AppTextStyles.displayMd,
         ),
         const SizedBox(height: 8),
         
@@ -664,11 +630,7 @@ class AuthHeader extends StatelessWidget {
         Text(
           subtitle,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textLight.withAlpha(204),
-            height: 1.5,
-          ),
+          style: AppTextStyles.bodySm.copyWith(height: 1.5),
         ),
       ],
     );
