@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/inline_error.dart';
 import '../services/api_service.dart';
 import '../models/user_models.dart';
 import '../routes/app_routes.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/validators.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -36,6 +39,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   String? _selectedRole;
   bool _isLoading = false;
   bool _acceptTerms = false;
+  String? _errorMessage;
   
   // Animation pour l'apparition des champs guides
   late AnimationController _animationController;
@@ -73,76 +77,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   // ============================================
   // ✅ VALIDATION - CHAMPS COMMUNS
   // ============================================
-  String? _validateFullName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre nom complet';
-    }
-    if (value.length < 3) {
-      return 'Le nom doit contenir au moins 3 caractères';
-    }
-    return null;
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre email';
-    }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Email invalide';
-    }
-    return null;
-  }
-
-  String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre numéro de téléphone';
-    }
-    // Validation pour format marocain: +212 6XX XX XX XX
-    final phoneRegex = RegExp(r'^\+212\s?[5-7]\d{8}$|^0[5-7]\d{8}$');
-    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
-      return 'Format: +212 6XX XX XX XX ou 06XX XX XX XX';
-    }
-    return null;
-  }
-
-  String? _validateBirthYear(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre année de naissance';
-    }
-    final year = int.tryParse(value);
-    if (year == null) {
-      return 'Année invalide';
-    }
-    final currentYear = DateTime.now().year;
-    if (year < 1924 || year > currentYear - 18) {
-      return 'Vous devez avoir au moins 18 ans';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer un mot de passe';
-    }
-    if (value.length < 6) {
-      return 'Au moins 6 caractères';
-    }
-    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(value)) {
-      return 'Doit contenir des lettres et des chiffres';
-    }
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez confirmer votre mot de passe';
-    }
-    if (value != _passwordController.text) {
-      return 'Les mots de passe ne correspondent pas';
-    }
-    return null;
-  }
+  // _validateFullName, _validateEmail, _validatePhone, _validateBirthYear,
+  // _validatePassword et _validateConfirmPassword ont été supprimés : ils
+  // dupliquaient exactement Validators.fullName/.email/.phone/.birthYear/
+  // .password/.confirmPassword et sont désormais câblés directement sur les
+  // champs ci-dessous.
 
   String? _validateRole(String? value) {
     if (value == null || value.isEmpty) {
@@ -205,39 +144,31 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   // 🚀 SUBMIT SIGNUP
   // ============================================
   Future<void> _handleSignup() async {
+    setState(() {
+      _errorMessage = null;
+    });
+
     // Valider le formulaire
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ Veuillez remplir tous les champs obligatoires'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Veuillez remplir tous les champs obligatoires';
+      });
       return;
     }
 
     // Vérifier la validation des spécialités pour les guides
     if (_selectedRole == 'guide' && _selectedSpecialties.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ Veuillez sélectionner au moins une spécialité'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Veuillez sélectionner au moins une spécialité';
+      });
       return;
     }
 
     // Vérifier que les conditions sont acceptées
     if (!_acceptTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ Vous devez accepter les conditions d\'utilisation'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Vous devez accepter les conditions d\'utilisation';
+      });
       return;
     }
 
@@ -320,22 +251,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         }
       }
     } catch (e) {
-      // Cacher l'indicateur de chargement
+      // Cacher l'indicateur de chargement et afficher l'erreur en ligne
       setState(() {
         _isLoading = false;
+        _errorMessage = e.toString();
       });
-
-      // Afficher l'erreur
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
     }
   }
 
@@ -383,7 +303,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   label: 'Nom complet',
                   hint: 'Mohammed Alami',
                   prefixIcon: Icons.person_outline,
-                  validator: _validateFullName,
+                  validator: Validators.fullName,
                 ),
                 
                 const SizedBox(height: 20),
@@ -397,7 +317,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   hint: 'exemple@email.com',
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
+                  validator: Validators.email,
                 ),
                 
                 const SizedBox(height: 20),
@@ -411,7 +331,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   hint: '+212 6XX XX XX XX',
                   prefixIcon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                  validator: _validatePhone,
+                  validator: Validators.phone,
                 ),
                 
                 const SizedBox(height: 20),
@@ -425,7 +345,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   hint: 'AAAA (ex: 1995)',
                   prefixIcon: Icons.cake_outlined,
                   keyboardType: TextInputType.number,
-                  validator: _validateBirthYear,
+                  validator: Validators.birthYear,
                 ),
                 
                 const SizedBox(height: 20),
@@ -477,10 +397,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'INFORMATIONS GUIDE',
-                                  style: TextStyle(
+                                  style: AppTextStyles.labelCaps.copyWith(
                                     color: AppColors.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                   ),
                                 ),
@@ -566,7 +484,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   hint: '••••••••',
                   prefixIcon: Icons.lock_outline,
                   isPassword: true,
-                  validator: _validatePassword,
+                  validator: Validators.password,
                 ),
                 
                 const SizedBox(height: 20),
@@ -580,7 +498,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   hint: '••••••••',
                   prefixIcon: Icons.lock_outline,
                   isPassword: true,
-                  validator: _validateConfirmPassword,
+                  validator: (v) => Validators.confirmPassword(v, _passwordController.text),
                 ),
                 
                 const SizedBox(height: 24),
@@ -618,14 +536,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                         child: RichText(
                           text: TextSpan(
                             text: 'J\'accepte les ',
-                            style: const TextStyle(
-                              color: AppColors.textLight,
-                              fontSize: 13,
-                            ),
+                            style: AppTextStyles.bodyXs,
                             children: [
                               TextSpan(
                                 text: 'Conditions d\'utilisation',
-                                style: const TextStyle(
+                                style: AppTextStyles.bodySm.copyWith(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w600,
                                   decoration: TextDecoration.underline,
@@ -634,7 +549,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                               const TextSpan(text: ' et la '),
                               TextSpan(
                                 text: 'Politique de confidentialité',
-                                style: const TextStyle(
+                                style: AppTextStyles.bodySm.copyWith(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w600,
                                   decoration: TextDecoration.underline,
@@ -649,7 +564,14 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 ),
                 
                 const SizedBox(height: 30),
-                
+
+                // ============================================
+                // ⚠️ ERREUR D'INSCRIPTION
+                // ============================================
+                InlineError(message: _errorMessage),
+
+                const SizedBox(height: 18),
+
                 // ============================================
                 // 🎯 BOUTON D'INSCRIPTION
                 // ============================================
@@ -677,11 +599,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OU',
-                        style: TextStyle(
-                          color: AppColors.textLight.withOpacity(0.6),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w500),
                       ),
                     ),
                     Expanded(
