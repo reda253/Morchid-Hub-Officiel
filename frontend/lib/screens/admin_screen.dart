@@ -80,6 +80,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Future<void> _loadGuidesByFilter(String status) async {
+    final previousFilter = _guideFilter;
     setState(() {
       _guideFilter = status;
       _loadingGuides = true;
@@ -96,7 +97,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingGuides = false);
+      setState(() {
+        _loadingGuides = false;
+        // Only revert if nothing more recent has already taken over the
+        // filter selection while this request was in flight - otherwise a
+        // slow, failing tap could stomp a newer tap's optimistic state.
+        if (_guideFilter == status) {
+          _guideFilter = previousFilter;
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
       );
