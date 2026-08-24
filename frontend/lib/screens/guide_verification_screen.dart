@@ -25,6 +25,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
   File? _cinePhoto;
 
   String? _photoError;
+  String? _submitError;
 
   bool _isSubmitting = false;
   final ImagePicker _picker = ImagePicker();
@@ -58,7 +59,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
         });
       }
     } catch (e) {
-      _showErrorSnackbar('Erreur lors de la sélection de l\'image: $e');
+      setState(() => _photoError = 'Erreur lors de la sélection de l\'image: $e');
     }
   }
 
@@ -131,7 +132,10 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
 
   // ── Soumission ────────────────────────────────────────────────────────
   Future<void> _submitVerification() async {
-    setState(() => _photoError = null);
+    setState(() {
+      _photoError = null;
+      _submitError = null;
+    });
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_validatePhotos()) return;
 
@@ -154,17 +158,8 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
       }
     } catch (e) {
       setState(() => _isSubmitting = false);
-      if (mounted) _showErrorSnackbar(e.toString());
+      if (mounted) setState(() => _submitError = e.toString());
     }
-  }
-
-  void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: AppColors.error,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 4),
-    ));
   }
 
   String? _basename(File? f) => f?.path.split(RegExp(r'[\\/]')).last;
@@ -262,6 +257,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
                       : const Text('Soumettre pour vérification'),
                 ),
               ),
+              InlineError(message: _submitError),
               const SizedBox(height: 24),
             ],
           ),
