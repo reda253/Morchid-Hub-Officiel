@@ -4,6 +4,9 @@ import '../models/search_models.dart';
 import '../services/api_service.dart';
 import '../widgets/whatsapp_contact_button.dart';
 import '../routes/app_routes.dart';
+import '../utils/app_colors.dart';
+import '../theme/app_text_styles.dart';
+import '../widgets/ui_kit.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  GuideProfileScreen
@@ -27,13 +30,6 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
   // Retourne true à la SearchScreen si un avis a été soumis
   bool _reviewSubmitted = false;
 
-  // ── Couleurs ──────────────────────────────────────────────────
-  static const Color primaryColor   = Color(0xFF004B87);
-  static const Color secondaryColor = Color(0xFF00325C);
-  static const Color textDark       = Color(0xFF1A1C1E);
-  static const Color textLight      = Color(0xFF6B7280);
-  static const Color starColor      = Color(0xFFFFC107);
-
   @override
   Widget build(BuildContext context) {
     final res   = widget.guide;
@@ -46,7 +42,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: AppColors.background,
         body: CustomScrollView(
           slivers: [
             // ── AppBar avec photo de couverture ──────────────────
@@ -69,8 +65,8 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                       const SizedBox(height: 8),
                       Text(
                         guide.bio,
-                        style: const TextStyle(
-                            fontSize: 14, color: textLight, height: 1.6),
+                        style: AppTextStyles.bodyLg.copyWith(
+                            color: AppColors.textLight, fontSize: 14, height: 1.6),
                       ),
                       const SizedBox(height: 20),
                     ],
@@ -81,15 +77,17 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
 
                     // Langues
                     _buildTagsSection('Langues parlées', guide.languages,
-                        Icons.language_rounded, primaryColor),
+                        Icons.language_rounded, AppColors.primary),
                     const SizedBox(height: 16),
 
                     // Spécialités
+                    // Couleur de catégorie décorative, sans équivalent token.
                     _buildTagsSection('Spécialités', guide.specialties,
                         Icons.category_rounded, Colors.blue.shade600),
                     const SizedBox(height: 16),
 
                     // Villes couvertes
+                    // Couleur de catégorie décorative, sans équivalent token.
                     _buildTagsSection('Villes couvertes', guide.citiesCovered,
                         Icons.location_on_rounded, Colors.orange.shade600),
                     const SizedBox(height: 28),
@@ -112,9 +110,9 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
     return SliverAppBar(
       expandedHeight: 220,
       pinned: true,
-      backgroundColor: primaryColor,
+      backgroundColor: AppColors.primary,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+        icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.onImage),
         onPressed: () => Navigator.pop(context, _reviewSubmitted),
       ),
       flexibleSpace: FlexibleSpaceBar(
@@ -125,7 +123,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [primaryColor, secondaryColor],
+                  colors: [AppColors.primary, AppColors.secondary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -146,8 +144,8 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                   const SizedBox(height: 12),
                   Text(
                     res.fullName,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: AppTextStyles.titleMd.copyWith(
+                      color: AppColors.onImage,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -155,8 +153,8 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Guide Touristique Certifié',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.8), fontSize: 13),
+                    style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.onImage.withOpacity(0.8), fontSize: 13),
                   ),
                 ],
               ),
@@ -179,26 +177,21 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             icon: Icons.star_rounded,
             label:
                 '${guide.averageRating.toStringAsFixed(1)} (${guide.totalReviews} avis)',
-            bgColor: starColor.withOpacity(0.12),
+            bgColor: AppColors.star.withOpacity(0.12),
+            // Nuance de texte propre au chip étoile, sans équivalent token.
             textColor: const Color(0xFF9A7B00),
-            iconColor: starColor,
+            iconColor: AppColors.star,
           ),
 
         // Certifié
-        if (guide.isVerified)
-          _chip(
-            icon: Icons.verified_rounded,
-            label: 'Guide Certifié',
-            bgColor: primaryColor.withOpacity(0.1),
-            textColor: primaryColor,
-            iconColor: primaryColor,
-          ),
+        if (guide.isVerified) const VerifiedBadge(label: 'Guide Certifié'),
 
         // Premium
         if (guide.isPremium)
           _chip(
             icon: Icons.workspace_premium,
             label: 'Premium',
+            // Palette premium décorative, sans équivalent dans le design system.
             bgColor: const Color(0xFFFFF3CC),
             textColor: const Color(0xFF9A6F00),
             iconColor: const Color(0xFFFFAA00),
@@ -208,6 +201,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
         _chip(
           icon: Icons.eco_rounded,
           label: 'Éco-Score ${guide.ecoScore}/100',
+          // Nuances vert "éco" décoratives, sans équivalent token.
           bgColor: Colors.green.shade50,
           textColor: Colors.green.shade700,
           iconColor: Colors.green.shade600,
@@ -218,73 +212,34 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
 
   // ── Carte infos détaillées ────────────────────────────────────
   Widget _buildInfoCard(dynamic guide) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        children: [
-          _infoRow(Icons.work_rounded, 'Expérience',
-              '${guide.yearsOfExperience} ans'),
-          _divider(),
-          _infoRow(Icons.eco_rounded, 'Éco-Score',
-              '${guide.ecoScore} / 100'),
-          _divider(),
-          _infoRow(
-            Icons.verified_rounded,
-            'Statut',
-            guide.isVerified ? 'Vérifié ✓' : 'En attente de vérification',
-            valueColor: guide.isVerified ? Colors.green : Colors.orange,
+    return InfoCard(
+      title: 'Informations',
+      children: [
+        InfoRow(
+          icon: Icons.work_rounded,
+          label: 'Expérience',
+          value: '${guide.yearsOfExperience} ans',
+        ),
+        InfoRow(
+          icon: Icons.eco_rounded,
+          label: 'Éco-Score',
+          value: '${guide.ecoScore} / 100',
+        ),
+        InfoRow(
+          icon: Icons.verified_rounded,
+          label: 'Statut',
+          value: guide.isVerified ? 'Vérifié ✓' : 'En attente de vérification',
+          valueColor: guide.isVerified ? AppColors.success : AppColors.warning,
+        ),
+        if (guide.totalReviews > 0)
+          InfoRow(
+            icon: Icons.star_rounded,
+            label: 'Note moyenne',
+            value:
+                '${guide.averageRating.toStringAsFixed(1)} / 5  (${guide.totalReviews} avis)',
+            valueColor: AppColors.star,
           ),
-          if (guide.totalReviews > 0) ...[
-            _divider(),
-            _infoRow(
-              Icons.star_rounded,
-              'Note moyenne',
-              '${guide.averageRating.toStringAsFixed(1)} / 5  (${guide.totalReviews} avis)',
-              valueColor: starColor,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _divider() => const Divider(height: 16, thickness: 0.5);
-
-  Widget _infoRow(IconData icon, String label, String value,
-      {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: textLight),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(fontSize: 11, color: textLight)),
-                const SizedBox(height: 2),
-                Text(value,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: valueColor ?? textDark)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -312,7 +267,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
                     ),
                     child: Text(
                       item,
-                      style: TextStyle(
+                      style: AppTextStyles.bodySm.copyWith(
                           fontSize: 13,
                           color: color,
                           fontWeight: FontWeight.w500),
@@ -342,17 +297,18 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
               icon: const Icon(Icons.chat_rounded, size: 20),
               label: Text(
                 'Contacter ${res.fullName.split(' ').first} via WhatsApp',
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold),
+                style: AppTextStyles.titleMd.copyWith(
+                    color: AppColors.onImage,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.whatsapp,
+                foregroundColor: AppColors.onImage,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 3,
-                shadowColor:
-                    const Color(0xFF25D366).withOpacity(0.35),
+                shadowColor: AppColors.whatsapp.withOpacity(0.35),
               ),
             ),
           ),
@@ -366,18 +322,18 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
           child: OutlinedButton.icon(
             onPressed: () => _openReviewScreen(guide, res.fullName),
             icon: const Icon(Icons.star_rounded, size: 20,
-                color: primaryColor),
+                color: AppColors.primary),
             label: Text(
               guide.totalReviews > 0
                   ? 'Laisser un avis (${guide.totalReviews} existants)'
                   : 'Soyez le premier à laisser un avis',
-              style: const TextStyle(
+              style: AppTextStyles.titleMd.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: primaryColor),
+                  color: AppColors.primary),
             ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: primaryColor, width: 1.5),
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
             ),
@@ -398,6 +354,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
         guidePhotoUrl: guide.profilePhotoUrl,
       ),
     );
+    if (!mounted) return;
     if (result == true) {
       setState(() => _reviewSubmitted = true);
     }
@@ -423,7 +380,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("Impossible d'ouvrir WhatsApp"),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -436,15 +393,15 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
     return Row(
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 18, color: color ?? primaryColor),
+          Icon(icon, size: 18, color: color ?? AppColors.primary),
           const SizedBox(width: 8),
         ],
         Text(
           title,
-          style: const TextStyle(
+          style: AppTextStyles.titleMd.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: textDark),
+              color: AppColors.textDark),
         ),
       ],
     );
@@ -467,7 +424,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
           Icon(icon, size: 14, color: iconColor),
           const SizedBox(width: 5),
           Text(label,
-              style: TextStyle(
+              style: AppTextStyles.bodySm.copyWith(
                   fontSize: 12,
                   color: textColor,
                   fontWeight: FontWeight.w600)),
@@ -476,47 +433,38 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
     );
   }
 
+  // ── Avatar avec repli sur les initiales (DefaultAvatar) ───────
   Widget _buildAvatar(String fullName, String? photoUrl,
       {double radius = 30}) {
-    if (photoUrl != null && photoUrl.isNotEmpty) {
-      final url = photoUrl.startsWith('http')
-          ? photoUrl
-          : '${ApiService.baseUrl}/$photoUrl';
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: primaryColor,
-        child: ClipOval(
-          child: Image.network(
-            url,
-            width: radius * 2,
-            height: radius * 2,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _initials(fullName, radius),
-          ),
-        ),
-      );
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return DefaultAvatar(fullName: fullName, radius: radius);
     }
-    return _initials(fullName, radius);
-  }
-
-  Widget _initials(String fullName, double radius) => CircleAvatar(
-        radius: radius,
-        backgroundColor: primaryColor,
-        child: Text(
-          fullName[0].toUpperCase(),
-          style: TextStyle(
-              color: Colors.white,
-              fontSize: radius * 0.7,
-              fontWeight: FontWeight.bold),
+    final url = photoUrl.startsWith('http')
+        ? photoUrl
+        : '${ApiService.baseUrl}/$photoUrl';
+    return CircleAvatar(
+      radius: radius,
+      // Le disque est rempli par la photo réseau ou, à défaut, DefaultAvatar.
+      backgroundColor: Colors.transparent,
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              DefaultAvatar(fullName: fullName, radius: radius),
         ),
-      );
+      ),
+    );
+  }
 
   Widget _decorCircle(double size, double opacity) => Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withOpacity(opacity),
+          color: AppColors.onImage.withOpacity(opacity),
         ),
       );
 }
