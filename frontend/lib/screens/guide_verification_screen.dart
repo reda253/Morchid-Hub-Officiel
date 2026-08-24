@@ -116,17 +116,14 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
   bool _validatePhotos() {
     if (_profilePhoto == null) {
       setState(() => _photoError = 'Veuillez ajouter une photo de profil');
-      _showErrorSnackbar('Veuillez ajouter une photo de profil');
       return false;
     }
     if (_cinePhoto == null) {
       setState(() => _photoError = 'Veuillez prendre en photo votre CIN');
-      _showErrorSnackbar('Veuillez prendre en photo votre CIN');
       return false;
     }
     if (_licensePhoto == null) {
       setState(() => _photoError = 'Veuillez prendre en photo votre carte de guide');
-      _showErrorSnackbar('Veuillez prendre en photo votre carte de guide');
       return false;
     }
     return true;
