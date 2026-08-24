@@ -3,6 +3,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/api_service.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/app_colors.dart';
+import '../widgets/inline_error.dart';
 import '../widgets/ui_kit.dart';
 
 class GuideVerificationScreen extends StatefulWidget {
@@ -14,14 +16,6 @@ class GuideVerificationScreen extends StatefulWidget {
 }
 
 class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
-  // Design system
-  static const Color primaryColor = Color(0xFF004B87);
-  static const Color backgroundColor = Color(0xFFF9F9FC);
-  static const Color textDark = Color(0xFF1A1C1E);
-  static const Color textLight = Color(0xFF6B7280);
-  static const Color successColor = Color(0xFF00A86B);
-  static const Color errorColor = Color(0xFFBA1A1A);
-
   final _formKey = GlobalKey<FormState>();
   final _cineController = TextEditingController();
   final _licenseController = TextEditingController();
@@ -29,6 +23,8 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
   File? _profilePhoto;
   File? _licensePhoto;
   File? _cinePhoto;
+
+  String? _photoError;
 
   bool _isSubmitting = false;
   final ImagePicker _picker = ImagePicker();
@@ -77,11 +73,11 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Choisir une source',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textDark)),
+            Text('Choisir une source',
+                style: AppTextStyles.titleMd.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 20),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: primaryColor),
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
               title: const Text('Prendre une photo'),
               onTap: () {
                 Navigator.pop(context);
@@ -89,7 +85,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: primaryColor),
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
               title: const Text('Choisir dans la galerie'),
               onTap: () {
                 Navigator.pop(context);
@@ -119,14 +115,17 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
 
   bool _validatePhotos() {
     if (_profilePhoto == null) {
+      setState(() => _photoError = 'Veuillez ajouter une photo de profil');
       _showErrorSnackbar('Veuillez ajouter une photo de profil');
       return false;
     }
     if (_cinePhoto == null) {
+      setState(() => _photoError = 'Veuillez prendre en photo votre CIN');
       _showErrorSnackbar('Veuillez prendre en photo votre CIN');
       return false;
     }
     if (_licensePhoto == null) {
+      setState(() => _photoError = 'Veuillez prendre en photo votre carte de guide');
       _showErrorSnackbar('Veuillez prendre en photo votre carte de guide');
       return false;
     }
@@ -135,6 +134,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
 
   // ── Soumission ────────────────────────────────────────────────────────
   Future<void> _submitVerification() async {
+    setState(() => _photoError = null);
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_validatePhotos()) return;
 
@@ -164,7 +164,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
-      backgroundColor: errorColor,
+      backgroundColor: AppColors.error,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 4),
     ));
@@ -174,14 +174,14 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
 
   Widget _label(String s) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: Text(s, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600, color: textDark)),
+        child: Text(s, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink)),
       );
 
   // ── Build (page unique style Stitch) ──────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Devenir vérifié')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -240,11 +240,12 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
                 fileName: _basename(_licensePhoto),
                 onTap: () => _showImageSourceDialog('license'),
               ),
+              InlineError(message: _photoError),
               const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, size: 16, color: textLight),
+                  const Icon(Icons.info_outline, size: 16, color: AppColors.textLight),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text('La vérification prend généralement 24 à 48 h ouvrées.',
@@ -260,7 +261,7 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
                   child: _isSubmitting
                       ? const SizedBox(
                           height: 20, width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
                       : const Text('Soumettre pour vérification'),
                 ),
               ),
@@ -283,17 +284,16 @@ class _GuideVerificationScreenState extends State<GuideVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: successColor.withValues(alpha: 0.1),
+                color: AppColors.success.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle, size: 60, color: successColor),
+              child: const Icon(Icons.check_circle, size: 60, color: AppColors.success),
             ),
             const SizedBox(height: 24),
-            const Text('Documents envoyés !',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textDark)),
+            Text('Documents envoyés !', style: AppTextStyles.headlineLg),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15, color: textLight, height: 1.5)),
+                style: AppTextStyles.bodyLg.copyWith(color: AppColors.textLight, height: 1.5)),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
