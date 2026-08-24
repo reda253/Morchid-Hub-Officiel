@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/inline_error.dart';
 import '../services/api_service.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/validators.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -14,22 +17,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   bool _isLoading = false;
   bool _emailSent = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre email';
-    }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Email invalide';
-    }
-    return null;
   }
 
   Future<void> _handleSubmit() async {
@@ -39,6 +32,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
@@ -64,18 +58,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _errorMessage = e.toString();
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
     }
   }
 
@@ -129,13 +113,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 30),
 
           // Titre
-          const Text(
+          Text(
             'Mot de passe oublié ?',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textDark,
-            ),
+            style: AppTextStyles.displayMd,
           ),
 
           const SizedBox(height: 12),
@@ -143,9 +123,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           // Description
           Text(
             'Pas de problème ! Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.',
-            style: TextStyle(
-              fontSize: 15,
-              color: AppColors.textLight.withOpacity(0.8),
+            style: AppTextStyles.bodyLg.copyWith(
+              color: AppColors.textLight,
               height: 1.5,
             ),
           ),
@@ -159,10 +138,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             hint: 'exemple@email.com',
             prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
-            validator: _validateEmail,
+            validator: Validators.email,
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 12),
+
+          // Erreur d'envoi
+          InlineError(message: _errorMessage),
+
+          const SizedBox(height: 18),
 
           // Bouton Envoyer
           PrimaryButton(
@@ -211,14 +195,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 30),
 
         // Titre
-        const Text(
+        Text(
           'Email envoyé !',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-          ),
+          style: AppTextStyles.numberXl,
         ),
 
         const SizedBox(height: 16),
@@ -227,9 +207,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Text(
           'Nous avons envoyé un lien de réinitialisation à\n${_emailController.text}',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textLight.withOpacity(0.8),
+          style: AppTextStyles.bodyLg.copyWith(
+            color: AppColors.textLight,
             height: 1.5,
           ),
         ),
@@ -257,9 +236,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Text(
                 'Vérifiez votre boîte de réception et cliquez sur le lien pour créer un nouveau mot de passe.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textDark.withOpacity(0.7),
+                style: AppTextStyles.bodySm.copyWith(
+                  color: AppColors.textDark,
                   height: 1.4,
                 ),
               ),
@@ -279,11 +257,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
           ),
-          child: const Text(
+          child: Text(
             'Retour à la connexion',
-            style: TextStyle(
+            style: AppTextStyles.bodyLg.copyWith(
               color: AppColors.primary,
-              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -298,11 +275,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               _emailSent = false;
             });
           },
-          child: const Text(
+          child: Text(
             'Renvoyer l\'email',
-            style: TextStyle(
-              color: AppColors.textLight,
-              fontSize: 14,
+            style: AppTextStyles.bodySm.copyWith(
               decoration: TextDecoration.underline,
             ),
           ),
