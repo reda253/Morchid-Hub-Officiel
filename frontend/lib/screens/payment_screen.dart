@@ -640,11 +640,31 @@ class _PaymentScreenState extends State<PaymentScreen>
           ),
           const Divider(height: 1),
           const SizedBox(height: 2),
-          InfoRow(
-            icon: Icons.payments_rounded,
-            label: 'Total',
-            value: '${widget.amount.toStringAsFixed(2)} DH',
-            valueColor: AppColors.primary,
+          // Bespoke row (not InfoRow): the total is the single most important
+          // number on this screen and needs the pre-diff bold (w700) emphasis
+          // that InfoRow's fixed w500 value style cannot provide.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.payments_rounded, size: 20, color: AppColors.textLight),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Total', style: AppTextStyles.labelCaps.copyWith(letterSpacing: 0)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${widget.amount.toStringAsFixed(2)} DH',
+                        style: AppTextStyles.titleSm.copyWith(
+                          fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           // Badge éco
