@@ -4,8 +4,10 @@ import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/app_colors.dart';
+import '../widgets/error_state.dart';
 import '../widgets/revenue_bar_chart.dart';
 import '../widgets/stat_tile.dart';
+import '../widgets/ui_kit.dart';
 
 /// Tableau de bord analytique admin — revenu & abonnements RÉELS
 /// (agrégés côté backend depuis la table `subscriptions`). Design Stitch.
@@ -56,7 +58,16 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return _ErrorView(message: '${snap.error}', onRetry: _refresh);
+            // ErrorState.fromApiError expects models/user_models.dart's
+            // ApiError; this screen's errors come from AdminService, which
+            // throws models/admin_models.dart's distinct (same-named)
+            // ApiError, so it isn't a valid argument for that factory here.
+            final error = snap.error;
+            return ErrorState(
+              title: 'Une erreur est survenue',
+              message: error is ApiError ? error.message : '$error',
+              onRetry: _refresh,
+            );
           }
           final data = snap.data!;
           final o = data.overview;
@@ -116,7 +127,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 const SizedBox(height: 20),
 
                 // ── Graphe revenu ────────────────────────────────────
-                _Card(
+                AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -141,7 +152,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 const SizedBox(height: 20),
 
                 // ── Répartition par tier ─────────────────────────────
-                _Card(
+                AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -169,22 +180,6 @@ class _DashboardData {
   final RevenueTimeseries revenue;
   final SubscriptionsBreakdown subscriptions;
   _DashboardData({required this.overview, required this.revenue, required this.subscriptions});
-}
-
-class _Card extends StatelessWidget {
-  final Widget child;
-  const _Card({required this.child});
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: child,
-      );
 }
 
 class _TierRow extends StatelessWidget {
@@ -216,31 +211,6 @@ class _TierRow extends StatelessWidget {
             style: AppTextStyles.bodyLg.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final Future<void> Function() onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.error, size: 40),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: AppTextStyles.bodySm),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Réessayer')),
-          ],
-        ),
       ),
     );
   }
