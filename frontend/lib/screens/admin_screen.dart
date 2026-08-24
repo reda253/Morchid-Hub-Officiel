@@ -461,6 +461,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _buildDocumentSection(String title, String? url, IconData icon) {
     final imageUrl = AdminService.getImageUrl(url);
+    final hasImage = imageUrl.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,8 +474,38 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           ],
         ),
         const SizedBox(height: 12),
-        BrandImage(url: imageUrl, height: 250, radius: 12, icon: icon),
+        // "Not submitted" must stay visually distinct from "submitted but
+        // failed to load" — an admin decides approve/reject on whether the
+        // document exists at all. BrandImage's placeholder covers loading
+        // and load-error identically (both cases DO have a URL), so only
+        // route through it once a URL is actually present; render a bespoke
+        // "no document" surface ourselves otherwise (ui_kit.dart is closed).
+        hasImage
+            ? BrandImage(url: imageUrl, height: 250, radius: 12, icon: icon)
+            : _buildMissingDocumentPlaceholder(),
       ],
+    );
+  }
+
+  Widget _buildMissingDocumentPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 250,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.image_not_supported_outlined, size: 48, color: AppColors.textLight),
+            const SizedBox(height: 8),
+            Text('Aucun document fourni', style: AppTextStyles.bodySm),
+          ],
+        ),
+      ),
     );
   }
 
