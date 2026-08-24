@@ -3,11 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:morchid_hub/screens/search_screen.dart';
 
 void main() {
-  testWidgets('disposes its controllers when torn down', (tester) async {
+  testWidgets('disposes its search controller when torn down', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
-    // Replacing the tree disposes the State. If a TextEditingController was
-    // left undisposed, the framework's leak detection surfaces it here.
+    final controller = tester.widget<TextField>(find.byType(TextField)).controller!;
+
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-    expect(tester.takeException(), isNull);
+
+    // A disposed ChangeNotifier throws when used again. Without the
+    // dispose() override in SearchScreen, this call succeeds and the test
+    // fails.
+    expect(() => controller.addListener(() {}), throwsFlutterError);
   });
 }

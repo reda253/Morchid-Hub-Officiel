@@ -51,16 +51,13 @@ class _SearchScreenState extends State<SearchScreen> {
         _hasSearched = true;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSearching = false;
         // ApiService.searchGuides always throws models/user_models.dart's
         // ApiError (it wraps every failure before rethrowing).
         _searchError = e as ApiError;
       });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
-      );
     }
   }
 
