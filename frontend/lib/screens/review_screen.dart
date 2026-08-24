@@ -828,10 +828,12 @@ class _ReviewScreenState extends State<ReviewScreen>
 
   // ── État vide ─────────────────────────────────────────────────────────────
   Widget _buildEmptyReviews() {
-    return const ErrorState(
+    return ErrorState(
       icon: Icons.rate_review_outlined,
       title: 'Aucun avis pour l\'instant',
       message: 'Soyez le premier à partager votre expérience\navec ce guide !',
+      onRetry: () => _tabController.animateTo(0),
+      retryLabel: 'Laisser le premier avis',
     );
   }
 
