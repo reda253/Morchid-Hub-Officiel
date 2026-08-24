@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/route_models.dart';
+import '../models/user_models.dart' show ApiError;
 import '../utils/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import '../routes/app_routes.dart';
+import '../widgets/error_state.dart';
 
 /// Écran d'exploration des trajets disponibles
 /// Affiche tous les circuits touristiques avec recherche par ville
@@ -18,7 +21,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
   bool _isLoading = true;
   List<RouteWithGuideInfo> _allRoutes = [];
   List<RouteWithGuideInfo> _filteredRoutes = [];
-  String _errorMessage = '';
+  ApiError? _error;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -41,21 +44,25 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
   Future<void> _loadRoutes() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
+      _error = null;
     });
 
     try {
       final data = await ApiService.fetchAllRoutes(limit: 100);
       final routes = data.map((json) => RouteWithGuideInfo.fromJson(json)).toList();
 
+      if (!mounted) return;
       setState(() {
         _allRoutes = routes;
         _filteredRoutes = routes;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _error = e is ApiError
+            ? e
+            : ApiError(errorCode: 'FETCH_ROUTES_ERROR', message: e.toString());
         _isLoading = false;
       });
     }
@@ -89,12 +96,12 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Découvrir les circuits',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: AppTextStyles.titleMd.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppColors.onPrimary),
         elevation: 0,
       ),
       body: Column(
@@ -106,7 +113,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
           Expanded(
             child: _isLoading
                 ? _buildLoader()
-                : _errorMessage.isNotEmpty
+                : _error != null
                     ? _buildError()
                     : _filteredRoutes.isEmpty
                         ? _buildEmptyState()
@@ -122,10 +129,10 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: AppColors.shadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -136,7 +143,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
         onChanged: _filterRoutes,
         decoration: InputDecoration(
           hintText: 'Rechercher par ville, quartier, guide...',
-          hintStyle: TextStyle(color: AppColors.textLight.withOpacity(0.7)),
+          hintStyle: AppTextStyles.bodyLg.copyWith(color: AppColors.textLight.withOpacity(0.7)),
           prefixIcon: const Icon(Icons.search, color: AppColors.primary),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -200,9 +207,9 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                     child: routeInfo.guidePhotoUrl == null
                         ? Text(
                             routeInfo.guideName[0].toUpperCase(),
-                            style: const TextStyle(
+                            style: AppTextStyles.titleMd.copyWith(
                               color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                             ),
                           )
                         : null,
@@ -215,7 +222,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                       children: [
                         Text(
                           routeInfo.guideName,
-                          style: const TextStyle(
+                          style: AppTextStyles.titleMd.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                             color: AppColors.textDark,
@@ -226,14 +233,11 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 14),
+                            const Icon(Icons.star, color: AppColors.star, size: 14),
                             const SizedBox(width: 4),
                             Text(
                               routeInfo.ratingDisplay,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textLight,
-                              ),
+                              style: AppTextStyles.bodySm.copyWith(fontSize: 12),
                             ),
                           ],
                         ),
@@ -259,7 +263,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         const SizedBox(width: 3),
                         Text(
                           '${route.checkpoints.length}',
-                          style: const TextStyle(
+                          style: AppTextStyles.bodySm.copyWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.primary,
@@ -276,20 +280,20 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF004B87).withOpacity(0.1),
+                        color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.payments, size: 12, color: Color(0xFF004B87)),
+                          const Icon(Icons.payments, size: 12, color: AppColors.primary),
                           const SizedBox(width: 3),
                           Text(
                             route.priceDisplay, // Utilise le getter que nous avons ajouté au modèle
-                            style: const TextStyle(
+                            style: AppTextStyles.bodySm.copyWith(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF004B87),
+                              color: AppColors.primary,
                             ),
                           ),
                         ],
@@ -314,10 +318,10 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
+                          color: AppColors.success.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.play_arrow, color: Colors.green, size: 16),
+                        child: const Icon(Icons.play_arrow, color: AppColors.success, size: 16),
                       ),
                       Container(
                         width: 2,
@@ -345,7 +349,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         // Départ
                         Text(
                           route.startAddress ?? 'Point de départ',
-                          style: const TextStyle(
+                          style: AppTextStyles.bodyLg.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textDark,
@@ -358,7 +362,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         // Arrivée
                         Text(
                           route.endAddress ?? 'Point d\'arrivée',
-                          style: const TextStyle(
+                          style: AppTextStyles.bodyLg.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textDark,
@@ -392,7 +396,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         const SizedBox(width: 6),
                         Text(
                           '${route.distance.toStringAsFixed(1)} km',
-                          style: const TextStyle(
+                          style: AppTextStyles.bodySm.copyWith(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textDark,
@@ -410,7 +414,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                         const SizedBox(width: 6),
                         Text(
                           _formatDuration(route.duration),
-                          style: const TextStyle(
+                          style: AppTextStyles.bodySm.copyWith(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textDark,
@@ -423,14 +427,14 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.payments, color: Color(0xFF004B87), size: 18),
+                          const Icon(Icons.payments, color: AppColors.primary, size: 18),
                           const SizedBox(width: 6),
                           Text(
                             route.priceDisplay,
-                            style: const TextStyle(
+                            style: AppTextStyles.bodySm.copyWith(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF004B87),
+                              color: AppColors.primary,
                             ),
                           ),
                         ],
@@ -445,11 +449,7 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
                 const SizedBox(height: 12),
                 Text(
                   route.description!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textLight,
-                    height: 1.4,
-                  ),
+                  style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 1.4),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -463,52 +463,22 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
 
   // ── États : Loading, Error, Empty ─────────────────────────────────────────
   Widget _buildLoader() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(color: AppColors.primary),
           SizedBox(height: 16),
-          Text('Chargement des circuits...', style: TextStyle(color: AppColors.textLight)),
+          Text('Chargement des circuits...', style: AppTextStyles.bodySm),
         ],
       ),
     );
   }
 
   Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.error, size: 64),
-            const SizedBox(height: 16),
-            const Text(
-              'Impossible de charger les circuits',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _errorMessage,
-              style: const TextStyle(fontSize: 13, color: AppColors.textLight),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadRoutes,
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text('Réessayer', style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ErrorState.fromApiError(
+      _error!,
+      onRetry: _loadRoutes,
     );
   }
 
@@ -521,16 +491,16 @@ class _AvailableRoutesScreenState extends State<AvailableRoutesScreen> {
           children: [
             Icon(Icons.map_outlined, color: AppColors.textLight.withOpacity(0.5), size: 80),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Aucun circuit disponible',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark),
+              style: AppTextStyles.titleMd,
             ),
             const SizedBox(height: 8),
             Text(
               _searchQuery.isEmpty
                   ? 'Aucun guide n\'a encore créé de circuit.\nRevenez plus tard !'
                   : 'Aucun circuit ne correspond à votre recherche.',
-              style: const TextStyle(fontSize: 13, color: AppColors.textLight),
+              style: AppTextStyles.bodyXs,
               textAlign: TextAlign.center,
             ),
             if (_searchQuery.isNotEmpty) ...[
