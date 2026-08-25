@@ -1001,9 +1001,9 @@ class _MapScreenState extends State<MapScreen> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: warningColor.withOpacity(0.1),
+        color: warningColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: warningColor.withOpacity(0.3)),
+        border: Border.all(color: warningColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -1012,7 +1012,7 @@ class _MapScreenState extends State<MapScreen> {
           Expanded(
             child: Text(
               'Trajets gratuits : $currentRoutes/$maxRoutes utilisés',
-              style: TextStyle(fontSize: 13, color: textDark),
+              style: AppTextStyles.bodyXs.copyWith(fontSize: 13, color: textDark),
             ),
           ),
         ],
