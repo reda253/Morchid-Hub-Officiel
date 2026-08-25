@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/api_service.dart';
-import '../widgets/whatsapp_contact_button.dart';
 import '../routes/app_routes.dart';
 import '../utils/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -290,8 +289,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             height: 52,
             child: ElevatedButton.icon(
               onPressed: () {
-                // Déléguer au widget WhatsAppContactButton via son tap interne
-                // On crée une instance temporaire et on appelle _openWhatsApp
+                // Cet écran a sa propre implémentation d'ouverture WhatsApp
+                // (bouton pleine largeur avec libellé), distincte du widget
+                // WhatsAppContactButton (bouton rond compact sans texte) —
+                // adopter ce dernier ici changerait le rendu visuel.
                 _launchWhatsApp(res.phone!, res.fullName);
               },
               icon: const Icon(Icons.chat_rounded, size: 20),

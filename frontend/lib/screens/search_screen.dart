@@ -224,7 +224,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, color: AppColors.sand, size: 16),
+                        const Icon(Icons.star_rounded, color: AppColors.star, size: 16),
                         const SizedBox(width: 3),
                         Text(
                           guide.totalReviews > 0

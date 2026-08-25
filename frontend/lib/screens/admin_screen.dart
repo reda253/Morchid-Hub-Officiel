@@ -28,6 +28,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   String _guideFilter = 'pending';
   List<GuideProfile> _guidesForFilter = [];
   bool _loadingGuides = false;
+  String? _guidesLoadError;
   
   // Dashboard stats
   int _totalUsers = 0;
@@ -91,6 +92,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       setState(() {
         _guidesForFilter = guides;
         _loadingGuides = false;
+        _guidesLoadError = null;
         if (status == 'pending') {
           _pendingApprovals = guides.length;
         }
@@ -104,6 +106,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         // slow, failing tap could stomp a newer tap's optimistic state.
         if (_guideFilter == status) {
           _guideFilter = previousFilter;
+          _guidesLoadError = e is ApiError ? e.message : 'Erreur: $e';
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -292,16 +295,22 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         Expanded(
           child: _loadingGuides
               ? const Center(child: CircularProgressIndicator())
-              : _guidesForFilter.isEmpty
-                  ? Center(
-                      child: Text('Aucun guide (${filters[_guideFilter]})',
-                          style: AppTextStyles.bodySm),
+              : _guidesLoadError != null
+                  ? ErrorState(
+                      title: 'Une erreur est survenue',
+                      message: _guidesLoadError!,
+                      onRetry: () => _loadGuidesByFilter(_guideFilter),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _guidesForFilter.length,
-                      itemBuilder: (context, i) => _buildGuideCard(_guidesForFilter[i]),
-                    ),
+                  : _guidesForFilter.isEmpty
+                      ? Center(
+                          child: Text('Aucun guide (${filters[_guideFilter]})',
+                              style: AppTextStyles.bodySm),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _guidesForFilter.length,
+                          itemBuilder: (context, i) => _buildGuideCard(_guidesForFilter[i]),
+                        ),
         ),
       ],
     );

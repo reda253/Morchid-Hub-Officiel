@@ -140,13 +140,13 @@ class _MapScreenState extends State<MapScreen> {
   // ── Vue touriste : timeline dépliée ──────────────────────────────────────
   bool _showTimeline = true;
   // Couleurs du design system Morchid Hub
-  static const Color primaryColor = Color(0xFF004B87);
-  static const Color backgroundColor = Color(0xFFF9F9FC);
-  static const Color textDark        = Color(0xFF1A1C1E);
-  static const Color textLight       = Color(0xFF6B7280);
-  static const Color warningColor = Color(0xFFB25E00);
-  static const Color errorColor = Color(0xFFBA1A1A);
-  static const Color successColor = Color(0xFF00A86B);
+  static const Color primaryColor = AppColors.primary;
+  static const Color backgroundColor = AppColors.background;
+  static const Color textDark        = AppColors.textDark;
+  static const Color textLight       = AppColors.textLight;
+  static const Color warningColor = AppColors.warning;
+  static const Color errorColor = AppColors.error;
+  static const Color successColor = AppColors.success;
 
   @override
   void initState() {

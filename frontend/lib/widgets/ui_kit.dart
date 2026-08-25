@@ -155,7 +155,7 @@ class ExperienceCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, size: 15, color: Color(0xFFFFB800)),
+                      const Icon(Icons.star_rounded, size: 15, color: AppColors.star),
                       const SizedBox(width: 3),
                       Text(rating!.toStringAsFixed(1),
                           style: AppTextStyles.labelCaps.copyWith(color: AppColors.ink, fontSize: 12)),
@@ -269,7 +269,7 @@ class ExpertCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.star_rounded, size: 15, color: Color(0xFFFFB800)),
+                const Icon(Icons.star_rounded, size: 15, color: AppColors.star),
                 const SizedBox(width: 3),
                 Text(rating != null ? '${rating!.toStringAsFixed(1)} ($reviews)' : 'Nouveau',
                     style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink)),
@@ -291,7 +291,7 @@ class ExpertCard extends StatelessWidget {
         color: AppColors.primary,
         alignment: Alignment.center,
         child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-            style: const TextStyle(color: AppColors.onPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+            style: AppTextStyles.numberLg.copyWith(color: AppColors.onPrimary, fontSize: 24)),
       );
 }
 

@@ -147,7 +147,7 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.star_rounded, color: AppColors.sand, size: 28),
+            const Icon(Icons.star_rounded, color: AppColors.star, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
