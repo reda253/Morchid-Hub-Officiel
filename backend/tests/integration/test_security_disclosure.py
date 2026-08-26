@@ -155,3 +155,18 @@ def test_contact_hides_unapproved_guide(client, db_session):
         f"/api/v1/guides/{guide.id}/contact", headers=auth_headers(tourist)
     )
     assert resp.status_code == 404, "ne pas confirmer l'existence d'un guide non approuvé"
+
+
+def test_public_reviews_do_not_expose_tourist_id(client, db_session):
+    from tests.factories import make_review, make_user
+
+    guide = make_guide(db_session, approval_status="approved")
+    tourist = make_user(db_session, role="tourist")
+    make_review(db_session, guide=guide, tourist=tourist)
+
+    resp = client.get(f"/api/v1/guides/{guide.id}/reviews")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reviews"], "l'avis doit être listé"
+    assert "tourist_id" not in body["reviews"][0]
+    assert body["reviews"][0]["tourist_name"], "le nom reste affiché"

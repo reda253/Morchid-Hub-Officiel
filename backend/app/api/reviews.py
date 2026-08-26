@@ -15,7 +15,6 @@ def _to_review_response(review: Review, tourist_name: str) -> ReviewResponse:
     return ReviewResponse(
         id=review.id,
         guide_id=review.guide_id,
-        tourist_id=review.tourist_id,
         tourist_name=tourist_name,
         route_id=review.route_id,
         rating=review.rating,

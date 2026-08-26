@@ -580,7 +580,6 @@ class ReviewResponse(BaseModel):
     """
     id:           str
     guide_id:     str
-    tourist_id:   str
     tourist_name: str                  # Enrichi depuis User.full_name
     route_id:     Optional[str] = None
     rating:       int                  # 1–5
@@ -593,7 +592,6 @@ class ReviewResponse(BaseModel):
             "example": {
                 "id":           "rev-456",
                 "guide_id":     "abc-123",
-                "tourist_id":   "usr-789",
                 "tourist_name": "Youssef El Amrani",
                 "route_id":     None,
                 "rating":       4,
@@ -663,3 +661,17 @@ class TimeSlotResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PublicRouteResponse(BaseModel):
+    """
+    Trajet actif public (GET /api/v1/routes/all).
+
+    Remplace un `response_model=List[dict]`, qui n'appliquait aucun filtrage
+    Pydantic : le dictionnaire construit à la main était correct, mais rien
+    n'empêchait un champ ajouté plus tard de partir en clair.
+    """
+    route: dict
+    guide_name: str
+    guide_photo_url: Optional[str] = None
+    guide_rating: float = 0.0
+    guide_total_reviews: int = 0

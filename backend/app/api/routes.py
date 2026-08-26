@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, status
 
 from ..auth import get_current_user
 from ..models import GuideRoute, User
-from ..schemas import GuideRouteCreate, GuideRouteResponse, SuccessResponse
+from ..schemas import (
+    GuideRouteCreate,
+    GuideRouteResponse,
+    PublicRouteResponse,
+    SuccessResponse,
+)
 from ..services.route_service import RouteService
 from .deps import get_route_service
 
@@ -94,7 +99,7 @@ async def delete_guide_route(
     )
 
 
-@router.get("/routes/all", response_model=List[dict], tags=["Public Routes"])
+@router.get("/routes/all", response_model=List[PublicRouteResponse], tags=["Public Routes"])
 async def get_all_active_routes(
     city: Optional[str] = None,
     limit: int = 50,
@@ -103,8 +108,8 @@ async def get_all_active_routes(
 ):
     rows = service.list_all_active(city, limit, offset)
     return [
-        {
-            "route": {
+        PublicRouteResponse(
+            route={
                 "id": route.id,
                 "guide_id": route.guide_id,
                 "coordinates": route.coordinates,
@@ -118,10 +123,10 @@ async def get_all_active_routes(
                 "created_at": route.created_at.isoformat() if route.created_at else None,
                 "updated_at": route.updated_at.isoformat() if route.updated_at else None,
             },
-            "guide_name": user.full_name,
-            "guide_photo_url": guide.profile_photo_url,
-            "guide_rating": guide.average_rating,
-            "guide_total_reviews": guide.total_reviews,
-        }
+            guide_name=user.full_name or "",
+            guide_photo_url=guide.profile_photo_url,
+            guide_rating=guide.average_rating or 0.0,
+            guide_total_reviews=guide.total_reviews or 0,
+        )
         for route, guide, user in rows
     ]
