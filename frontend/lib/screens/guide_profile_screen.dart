@@ -185,16 +185,9 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
         // Certifié
         if (guide.isVerified) const VerifiedBadge(label: 'Guide Certifié'),
 
-        // Premium
-        if (guide.isPremium)
-          _chip(
-            icon: Icons.workspace_premium,
-            label: 'Premium',
-            // Palette premium décorative, sans équivalent dans le design system.
-            bgColor: const Color(0xFFFFF3CC),
-            textColor: const Color(0xFF9A6F00),
-            iconColor: const Color(0xFFFFAA00),
-          ),
+        // Le badge Premium a disparu : PublicGuideCard n'expose plus
+        // is_premium, qui relève de la facturation du guide et non de la
+        // fiche publique.
 
         // Éco-score
         _chip(
@@ -283,36 +276,52 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
     return Column(
       children: [
         // Bouton WhatsApp (pleine largeur)
-        if (res.phone != null && res.phone!.isNotEmpty)
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Cet écran a sa propre implémentation d'ouverture WhatsApp
-                // (bouton pleine largeur avec libellé), distincte du widget
-                // WhatsAppContactButton (bouton rond compact sans texte) —
-                // adopter ce dernier ici changerait le rendu visuel.
-                _launchWhatsApp(res.phone!, res.fullName);
-              },
-              icon: const Icon(Icons.chat_rounded, size: 20),
-              label: Text(
-                'Contacter ${res.fullName.split(' ').first} via WhatsApp',
-                style: AppTextStyles.titleMd.copyWith(
-                    color: AppColors.onImage,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold),
+        // Le numéro n'est plus dans la réponse de recherche (endpoint anonyme) :
+        // il est récupéré à la demande via l'endpoint de contact, session requise.
+        FutureBuilder<String?>(
+          future: ApiService.fetchGuidePhone(res.guide.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 52,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            }
+            final phone = snapshot.data;
+            if (phone == null || phone.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Cet écran a sa propre implémentation d'ouverture WhatsApp
+                  // (bouton pleine largeur avec libellé), distincte du widget
+                  // WhatsAppContactButton (bouton rond compact sans texte) —
+                  // adopter ce dernier ici changerait le rendu visuel.
+                  _launchWhatsApp(phone, res.fullName);
+                },
+                icon: const Icon(Icons.chat_rounded, size: 20),
+                label: Text(
+                  'Contacter ${res.fullName.split(' ').first} via WhatsApp',
+                  style: AppTextStyles.titleMd.copyWith(
+                      color: AppColors.onImage,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.whatsapp,
+                  foregroundColor: AppColors.onImage,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 3,
+                  shadowColor: AppColors.whatsapp.withOpacity(0.35),
+                ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.whatsapp,
-                foregroundColor: AppColors.onImage,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 3,
-                shadowColor: AppColors.whatsapp.withOpacity(0.35),
-              ),
-            ),
-          ),
+            );
+          },
+        ),
 
         const SizedBox(height: 12),
 

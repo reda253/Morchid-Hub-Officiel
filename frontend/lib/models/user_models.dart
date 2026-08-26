@@ -280,7 +280,6 @@ class ReviewCreateRequest {
 class Review {
   final String id;
   final String guideId;
-  final String touristId;
   final String touristName;   // Enrichi par le backend depuis users.full_name
   final String? routeId;
   final int rating;           // 1–5
@@ -290,7 +289,6 @@ class Review {
   Review({
     required this.id,
     required this.guideId,
-    required this.touristId,
     required this.touristName,
     this.routeId,
     required this.rating,
@@ -301,7 +299,6 @@ class Review {
   factory Review.fromJson(Map<String, dynamic> json) => Review(
         id:           json['id'],
         guideId:      json['guide_id'],
-        touristId:    json['tourist_id'],
         touristName:  json['tourist_name'] ?? 'Touriste anonyme',
         routeId:      json['route_id'],
         rating:       json['rating'],

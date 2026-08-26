@@ -3,51 +3,16 @@
 
 // ============================================
 // MODÈLE : SearchGuideResult
-// Correspond à SearchGuideResponse (backend)
-// Utilisé pour GET /api/v1/search/guides
+// Correspond à PublicGuideCard (backend)
+// Utilisé pour GET /api/v1/search/guides et GET /api/v1/guides
 // ============================================
 
-class SearchGuideUserInfo {
-  final String id;
-  final String fullName;
-  final String email;
-  // ✅ Numéro de téléphone — stocké dans users, exposé ici pour accès direct
-  final String? phone;
-  final String role;
-  final bool isAdmin;
-  final bool isActive;
-  final bool isEmailVerified;
-  final DateTime createdAt;
-
-  SearchGuideUserInfo({
-    required this.id,
-    required this.fullName,
-    required this.email,
-    this.phone,
-    required this.role,
-    required this.isAdmin,
-    required this.isActive,
-    required this.isEmailVerified,
-    required this.createdAt,
-  });
-
-  factory SearchGuideUserInfo.fromJson(Map<String, dynamic> json) {
-    return SearchGuideUserInfo(
-      id: json['id'],
-      fullName: json['full_name'],
-      email: json['email'],
-      phone: json['phone'] as String?,  // ✅ Depuis UserResponse
-      role: json['role'],
-      isAdmin: json['is_admin'] ?? false,
-      isActive: json['is_active'] ?? true,
-      isEmailVerified: json['is_email_verified'] ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-    );
-  }
-}
-
+/// Informations guide issues de PublicGuideCard (backend).
+///
+/// Le backend ne renvoie plus d'objets `user`/`guide` imbriqués, ni l'email,
+/// le téléphone, is_admin ou les URLs des documents d'identité : la recherche
+/// est un endpoint anonyme. Cette classe reste séparée parce que les écrans
+/// lisent `res.guide.id` et `res.guide.profilePhotoUrl`.
 class SearchGuideInfo {
   final String id;
   final String userId;
@@ -57,14 +22,8 @@ class SearchGuideInfo {
   final int yearsOfExperience;
   final String bio;
   final bool isVerified;
-  final bool isPremium;
   final int ecoScore;
-  final String approvalStatus;
   final String? profilePhotoUrl;
-  final String? licenseCardUrl;
-  final String? cineCardUrl;
-
-  // ✅ NOUVEAU
   final double averageRating;
   final int totalReviews;
 
@@ -78,19 +37,15 @@ class SearchGuideInfo {
     required this.bio,
     required this.isVerified,
     required this.ecoScore,
-    required this.approvalStatus,
-    required this.isPremium,
     this.profilePhotoUrl,
-    this.licenseCardUrl,
-    this.cineCardUrl,
     this.averageRating = 0.0,
     this.totalReviews = 0,
   });
 
   factory SearchGuideInfo.fromJson(Map<String, dynamic> json) {
     return SearchGuideInfo(
-      id: json['id'],
-      userId: json['user_id'],
+      id: json['guide_id'] ?? '',
+      userId: json['user_id'] ?? '',
       languages: List<String>.from(json['languages'] ?? []),
       specialties: List<String>.from(json['specialties'] ?? []),
       citiesCovered: List<String>.from(json['cities_covered'] ?? []),
@@ -98,41 +53,37 @@ class SearchGuideInfo {
       bio: json['bio'] ?? '',
       isVerified: json['is_verified'] ?? false,
       ecoScore: json['eco_score'] ?? 0,
-      approvalStatus: json['approval_status'] ?? 'approved',
-      isPremium: json['is_premium'] ?? false,
       profilePhotoUrl: json['profile_photo_url'],
-      licenseCardUrl: json['license_card_url'],
-      cineCardUrl: json['cine_card_url'],
       averageRating: (json['average_rating'] ?? 0.0).toDouble(),
       totalReviews: json['total_reviews'] ?? 0,
     );
   }
 }
 
-/// Résultat de /search/guides (user + guide imbriqués)
+/// Résultat de /search/guides — structure plate (PublicGuideCard).
+///
+/// Le numéro de téléphone ne fait plus partie de cette réponse : il se récupère
+/// à la demande via ApiService.fetchGuidePhone(), qui exige une session.
 class SearchGuideResult {
-  final SearchGuideUserInfo user;
+  final String userId;
+  final String fullName;
   final SearchGuideInfo guide;
-  // ✅ Numéro de téléphone du guide — vient de users.phone via la jointure backend.
-  // Pas de nouvelle colonne DB : le backend l'extrait et l'expose à plat.
-  final String? phone;
 
   SearchGuideResult({
-    required this.user,
+    required this.userId,
+    required this.fullName,
     required this.guide,
-    this.phone,
   });
 
   factory SearchGuideResult.fromJson(Map<String, dynamic> json) {
     return SearchGuideResult(
-      user: SearchGuideUserInfo.fromJson(json['user']),
-      guide: SearchGuideInfo.fromJson(json['guide']),
-      phone: json['phone'] as String?,  // ✅ Champ plat au niveau racine
+      userId: json['user_id'] ?? '',
+      fullName: json['full_name'] ?? '',
+      guide: SearchGuideInfo.fromJson(json),
     );
   }
 
-  // Helpers pratiques
-  String get fullName => user.fullName;
+  // Helpers pratiques — surface publique inchangée pour les écrans.
   String get profilePhotoUrl => guide.profilePhotoUrl ?? '';
   double get rating => guide.averageRating;
   int get reviews => guide.totalReviews;

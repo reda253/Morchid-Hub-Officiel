@@ -193,31 +193,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(res.fullName,
-                              style: AppTextStyles.titleMd, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        if (guide.isPremium)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.workspace_premium, color: AppColors.onPrimary, size: 12),
-                                const SizedBox(width: 3),
-                                Text('PREMIUM',
-                                    style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, fontSize: 9)),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
+                    // Le badge Premium a disparu : PublicGuideCard n'expose
+                    // plus is_premium, qui relève de la facturation du guide
+                    // et non de la fiche publique.
+                    Text(res.fullName,
+                        style: AppTextStyles.titleMd, maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     Text(guide.specialties.join(' · '),
                         style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -280,7 +260,25 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              WhatsAppContactButton(phone: res.phone ?? '', guideName: res.fullName),
+              // Le numéro n'est plus dans la réponse de recherche (endpoint
+              // anonyme) : il est récupéré à la demande, session requise.
+              FutureBuilder<String?>(
+                future: ApiService.fetchGuidePhone(res.guide.id),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
+                  }
+                  final phone = snapshot.data;
+                  if (phone == null || phone.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return WhatsAppContactButton(phone: phone, guideName: res.fullName);
+                },
+              ),
             ],
           ),
         ],
@@ -311,7 +309,6 @@ class _SearchScreenState extends State<SearchScreen> {
       'id': res.guide.id,
       'name': res.fullName,
       'photo': res.guide.profilePhotoUrl,
-      'phone': res.phone ?? '',
     });
 
     if (!mounted) return;

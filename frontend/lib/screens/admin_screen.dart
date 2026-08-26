@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/admin_service.dart';
+import '../services/api_service.dart';
 import '../models/admin_models.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/stat_tile.dart';
@@ -456,16 +457,20 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       Icons.person,
                     ),
                     const SizedBox(height: 20),
-                    _buildDocumentSection(
+                    _buildProtectedDocumentSection(
                       'Carte de licence',
                       guide.licenseCardUrl,
                       Icons.badge,
+                      guideId: guide.id,
+                      docType: 'license',
                     ),
                     const SizedBox(height: 20),
-                    _buildDocumentSection(
+                    _buildProtectedDocumentSection(
                       'Carte CINE',
                       guide.cineCardUrl,
                       Icons.credit_card,
+                      guideId: guide.id,
+                      docType: 'cine',
                     ),
                   ],
                 ),
@@ -502,6 +507,83 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             ? BrandImage(url: imageUrl, height: 250, radius: 12, icon: icon)
             : _buildMissingDocumentPlaceholder(),
       ],
+    );
+  }
+
+  /// Pièces d'identité (licence, CINE) — servies uniquement par l'endpoint
+  /// administrateur, avec un jeton porteur. Elles ne sont plus accessibles via
+  /// /uploads, donc l'URL stockée en base ne sert plus qu'à savoir si le guide
+  /// a bien déposé le document : la distinction « non fourni » / « fourni mais
+  /// illisible » doit rester visible pour décider d'approuver ou de rejeter.
+  Widget _buildProtectedDocumentSection(
+    String title,
+    String? url,
+    IconData icon, {
+    required String guideId,
+    required String docType,
+  }) {
+    final hasDocument = url != null && url.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(title, style: AppTextStyles.titleMd),
+          ],
+        ),
+        const SizedBox(height: 12),
+        hasDocument
+            ? FutureBuilder<Map<String, String>>(
+                future: ApiService.authHeadersForImages(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const SizedBox(
+                      height: 250,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      ApiService.guideDocumentUrl(guideId, docType),
+                      headers: snapshot.data,
+                      height: 250,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _buildUnavailableDocumentPlaceholder(),
+                    ),
+                  );
+                },
+              )
+            : _buildMissingDocumentPlaceholder(),
+      ],
+    );
+  }
+
+  /// Document déposé mais impossible à charger — distinct de « aucun document ».
+  Widget _buildUnavailableDocumentPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 250,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.error),
+            const SizedBox(height: 8),
+            Text('Document indisponible', style: AppTextStyles.bodySm),
+          ],
+        ),
+      ),
     );
   }
 

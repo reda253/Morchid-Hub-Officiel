@@ -44,6 +44,10 @@ class ApiService {
   static const String searchGuidesWithRoutesEndpoint = '/api/v1/search/guides-with-routes';
   static const String searchFiltersEndpoint          = '/api/v1/search/filters';
 
+  // ── Endpoints protégés (session / administrateur) ────────────────────────
+  static const String guideContactEndpoint = '/api/v1/guides';   // + /{id}/contact
+  static const String adminGuidesEndpoint  = '/api/v1/admin/guides';
+
   // ── ✅ Endpoints Avis ─────────────────────────────────────────────────────
   static const String _reviewsBase = '/api/v1/reviews';
   static String _guideReviewsEndpoint(String guideId) =>
@@ -650,6 +654,29 @@ static Future<Map<String, String>> _getAuthHeaders() async {
     'Authorization': 'Bearer $token',
   };
 }
+
+  /// Numéro de téléphone d'un guide — nécessite une session.
+  ///
+  /// Le numéro ne fait plus partie de la réponse de recherche (endpoint
+  /// anonyme). Retourne null si l'appel échoue ou si le guide n'en a pas.
+  static Future<String?> fetchGuidePhone(String guideId) async {
+    try {
+      final uri = Uri.parse('$baseUrl$guideContactEndpoint/$guideId/contact');
+      final response = await http.get(uri, headers: await _getAuthHeaders());
+      if (response.statusCode != 200) return null;
+      return jsonDecode(response.body)['phone'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// URL d'un document d'identité de guide (réservé aux administrateurs).
+  /// L'image doit être chargée avec les en-têtes d'authentification.
+  static String guideDocumentUrl(String guideId, String docType) =>
+      '$baseUrl$adminGuidesEndpoint/$guideId/documents/$docType';
+
+  /// En-têtes d'authentification exposés pour Image.network.
+  static Future<Map<String, String>> authHeadersForImages() => _getAuthHeaders();
 
 // Sauvegarder un trajet
 static Future<Map<String, dynamic>> saveGuideRoute(Map<String, dynamic> routeData) async {
