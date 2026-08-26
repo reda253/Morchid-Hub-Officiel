@@ -121,3 +121,7 @@ class AdminService:
                 "unresolved": self.support.count_unresolved(),
             },
         }
+
+    def get_guide(self, guide_id: str):
+        """Guide par id, ou None. Utilisé par l'accès aux documents."""
+        return self.guides.get_by_id(guide_id)

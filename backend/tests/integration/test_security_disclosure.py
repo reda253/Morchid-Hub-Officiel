@@ -84,3 +84,43 @@ def test_licence_and_cine_directories_are_not_served(client):
     for path in ("/uploads/licenses/whatever.jpg", "/uploads/cines/whatever.jpg"):
         resp = client.get(path)
         assert resp.status_code == 404, f"{path} est encore servi ({resp.status_code})"
+
+
+def test_document_endpoint_requires_admin(client, db_session):
+    guide = make_guide(db_session, approval_status="approved")
+    resp = client.get(f"/api/v1/admin/guides/{guide.id}/documents/license")
+    assert resp.status_code in (401, 403)
+
+
+def test_document_endpoint_serves_admin(client, db_session, admin_user, tmp_path):
+    from tests.factories import auth_headers
+    from app.uploads import LICENSE_DIR, ensure_upload_dirs
+
+    ensure_upload_dirs()
+    doc = LICENSE_DIR / "plan-test-licence.jpg"
+    doc.write_bytes(b"\xff\xd8\xff\xe0 fake jpeg")
+
+    guide = make_guide(db_session, approval_status="approved")
+    guide.license_card_url = f"uploads/licenses/{doc.name}"
+    db_session.flush()
+
+    try:
+        resp = client.get(
+            f"/api/v1/admin/guides/{guide.id}/documents/license",
+            headers=auth_headers(admin_user),
+        )
+        assert resp.status_code == 200
+        assert resp.content == b"\xff\xd8\xff\xe0 fake jpeg"
+    finally:
+        doc.unlink(missing_ok=True)
+
+
+def test_document_endpoint_rejects_unknown_type(client, db_session, admin_user):
+    from tests.factories import auth_headers
+
+    guide = make_guide(db_session, approval_status="approved")
+    resp = client.get(
+        f"/api/v1/admin/guides/{guide.id}/documents/passport",
+        headers=auth_headers(admin_user),
+    )
+    assert resp.status_code == 422, "doc_type est contraint par l'enum de la route"

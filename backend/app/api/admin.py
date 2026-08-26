@@ -1,9 +1,12 @@
 """Controller Administration — utilisateurs, guides, support, statistiques."""
 
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
 
+from ..exceptions import NotFoundError
 from ..models import User
 from ..schemas import (
     GuideRejection,
@@ -14,6 +17,7 @@ from ..schemas import (
 )
 from ..services.admin_service import AdminService
 from ..services.analytics_service import AnalyticsService
+from ..uploads import CINE_DIR, LICENSE_DIR
 from .deps import get_admin_service, get_analytics_service, require_admin
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
@@ -186,3 +190,41 @@ async def analytics_subscriptions(
     admin: User = Depends(require_admin),
 ):
     return service.subscriptions_breakdown()
+
+
+# ── Documents d'identité ──────────────────────────────────────────────────
+@router.get("/guides/{guide_id}/documents/{doc_type}", tags=["Administration"])
+async def get_guide_document(
+    guide_id: str,
+    doc_type: Literal["license", "cine"],
+    service: AdminService = Depends(get_admin_service),
+    admin: User = Depends(require_admin),
+):
+    """Sert un document d'identité de guide à un administrateur authentifié.
+
+    Ces fichiers ne sont plus servis en statique (voir main.py) : la licence
+    professionnelle et la CINE sont des pièces d'identité.
+
+    Garde contre la traversée de répertoire : la route n'accepte jamais un nom
+    de fichier fourni par le client, seulement un id de guide et un type parmi
+    deux valeurs. Le chemin lu en base est ensuite re-vérifié comme étant à
+    l'intérieur du dossier attendu — une valeur corrompue en base ne peut donc
+    pas faire sortir la lecture de l'arborescence.
+    """
+    guide = service.get_guide(guide_id)
+    if guide is None:
+        raise NotFoundError("GUIDE_NOT_FOUND", "Guide introuvable")
+
+    if doc_type == "license":
+        stored, root = guide.license_card_url, LICENSE_DIR
+    else:
+        stored, root = guide.cine_card_url, CINE_DIR
+
+    if not stored:
+        raise NotFoundError("DOCUMENT_NOT_FOUND", "Document non fourni par ce guide")
+
+    candidate = (root / Path(stored).name).resolve()
+    if not candidate.is_file() or root.resolve() not in candidate.parents:
+        raise NotFoundError("DOCUMENT_NOT_FOUND", "Document introuvable")
+
+    return FileResponse(candidate)
