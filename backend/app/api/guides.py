@@ -5,6 +5,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from ..auth import get_current_user
+from ..exceptions import NotFoundError
 from ..models import User
 from ..schemas import GuideResponse, PublicGuideCard, SuccessResponse
 from ..services.guide_service import GuideService
@@ -64,3 +65,23 @@ async def get_all_guides(
         )
         for guide in guides
     ]
+
+
+@router.get("/guides/{guide_id}/contact", tags=["Guides"])
+async def get_guide_contact(
+    guide_id: str,
+    current_user: User = Depends(get_current_user),
+    service: GuideService = Depends(get_guide_service),
+):
+    """Numéro de téléphone d'un guide — réservé aux utilisateurs connectés.
+
+    Le numéro ne fait plus partie de la réponse de recherche : un annuaire de
+    numéros de guides ne doit pas être moissonnable anonymement.
+
+    Un guide non approuvé renvoie 404 et non 403, pour ne pas confirmer
+    l'existence d'un compte à partir de son id.
+    """
+    guide = service.get_public_guide(guide_id)
+    if guide is None:
+        raise NotFoundError("GUIDE_NOT_FOUND", "Guide introuvable")
+    return {"phone": guide.user.phone if guide.user else None}

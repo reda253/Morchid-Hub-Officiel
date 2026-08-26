@@ -124,3 +124,34 @@ def test_document_endpoint_rejects_unknown_type(client, db_session, admin_user):
         headers=auth_headers(admin_user),
     )
     assert resp.status_code == 422, "doc_type est contraint par l'enum de la route"
+
+
+def test_contact_requires_authentication(client, db_session):
+    guide = make_guide(db_session, approval_status="approved")
+    resp = client.get(f"/api/v1/guides/{guide.id}/contact")
+    assert resp.status_code in (401, 403)
+
+
+def test_contact_returns_phone_to_logged_in_user(client, db_session):
+    from tests.factories import auth_headers, make_user
+
+    tourist = make_user(db_session, role="tourist")
+    guide = make_guide(db_session, approval_status="approved")
+
+    resp = client.get(
+        f"/api/v1/guides/{guide.id}/contact", headers=auth_headers(tourist)
+    )
+    assert resp.status_code == 200
+    assert resp.json()["phone"] == guide.user.phone
+
+
+def test_contact_hides_unapproved_guide(client, db_session):
+    from tests.factories import auth_headers, make_user
+
+    tourist = make_user(db_session, role="tourist")
+    guide = make_guide(db_session, approval_status="pending")
+
+    resp = client.get(
+        f"/api/v1/guides/{guide.id}/contact", headers=auth_headers(tourist)
+    )
+    assert resp.status_code == 404, "ne pas confirmer l'existence d'un guide non approuvé"

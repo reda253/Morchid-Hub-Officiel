@@ -91,3 +91,10 @@ class GuideService:
             "license_photo_url": f"/{license_photo_path}",
             "cine_photo_url": f"/{cine_photo_path}",
         }
+
+    def get_public_guide(self, guide_id: str):
+        """Guide approuvé par id, ou None si absent ou non approuvé."""
+        guide = self.guides.get_by_id(guide_id)
+        if guide is None or guide.approval_status != "approved":
+            return None
+        return guide
