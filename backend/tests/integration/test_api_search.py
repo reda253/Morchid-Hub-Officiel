@@ -15,7 +15,7 @@ def test_search_guides_city_filter(client, db_session):
     assert resp.status_code == 200
     results = resp.json()
     assert len(results) == 1
-    assert "Fès" in results[0]["guide"]["cities_covered"]
+    assert "Fès" in results[0]["cities_covered"]
 
 
 def test_search_excludes_pending_guides(client, db_session):

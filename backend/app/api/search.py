@@ -4,14 +4,14 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from ..schemas import ActiveRouteInfo, SearchGuideResponse, SearchRouteResponse
+from ..schemas import ActiveRouteInfo, PublicGuideCard, SearchRouteResponse
 from ..services.search_service import SearchService
 from .deps import get_search_service
 
 router = APIRouter(prefix="/api/v1/search", tags=["Recherche"])
 
 
-@router.get("/guides", response_model=List[SearchGuideResponse], summary="Recherche avancée de guides")
+@router.get("/guides", response_model=List[PublicGuideCard], summary="Recherche avancée de guides")
 async def search_guides(
     q: Optional[str] = Query(None, min_length=2, max_length=100),
     city: Optional[str] = Query(None),
@@ -38,7 +38,21 @@ async def search_guides(
         offset=offset,
     )
     return [
-        SearchGuideResponse(user=user, guide=guide, phone=user.phone)
+        PublicGuideCard(
+            user_id=user.id,
+            guide_id=guide.id,
+            full_name=user.full_name or "",
+            profile_photo_url=guide.profile_photo_url,
+            languages=guide.languages or [],
+            specialties=guide.specialties or [],
+            cities_covered=guide.cities_covered or [],
+            years_of_experience=guide.years_of_experience,
+            bio=guide.bio or "",
+            is_verified=guide.is_verified,
+            eco_score=guide.eco_score,
+            average_rating=guide.average_rating or 0.0,
+            total_reviews=guide.total_reviews or 0,
+        )
         for user, guide in results
     ]
 

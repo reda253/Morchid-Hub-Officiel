@@ -407,20 +407,43 @@ class SupportMessageResponse(BaseModel):
 # ✅ SCHEMAS DE RECHERCHE
 # ============================================
 
-class SearchGuideResponse(BaseModel):
+class PublicGuideCard(BaseModel):
     """
-    Réponse de recherche de guide (endpoint /search/guides).
-    Retourne un objet 'user' et un objet 'guide' imbriqués.
-    Le champ 'phone' est extrait de la table users via la jointure
-    et exposé à plat pour que le frontend puisse l'utiliser directement
-    (ex: bouton WhatsApp) sans avoir à le chercher dans user.phone.
+    Projection publique d'un guide — endpoints anonymes (/search/guides, /guides).
+
+    Cette classe est volontairement *plate* et énumère ses champs un par un.
+    Elle ne compose PAS UserResponse ni GuideResponse : ces deux schémas sont
+    des reflets de leurs lignes SQL et exposeraient email, téléphone, is_admin
+    et les URLs des documents d'identité (licence, CINE) à un appelant anonyme.
+
+    Toute nouvelle donnée personnelle ajoutée aux modèles n'apparaîtra ici que
+    si quelqu'un l'ajoute explicitement — c'est l'intérêt d'énumérer.
     """
-    user: UserResponse
-    guide: GuideResponse
-    phone: Optional[str] = None  # ✅ Copié depuis user.phone — pas de nouvelle colonne DB
+    user_id: str
+    guide_id: str
+    full_name: str
+    profile_photo_url: Optional[str] = None
+
+    languages: List[str]
+    specialties: List[str]
+    cities_covered: List[str]
+    years_of_experience: int
+    bio: str
+    is_verified: bool
+
+    eco_score: int
+    average_rating: float = 0.0
+    total_reviews: int = 0
 
     class Config:
         from_attributes = True
+
+    @validator('profile_photo_url', pre=True)
+    def normalize_photo(cls, v):
+        """Remplace les backslashes Windows par des slashes URL."""
+        if v and isinstance(v, str):
+            return v.replace('\\', '/')
+        return v
 
 
 class ActiveRouteInfo(BaseModel):
