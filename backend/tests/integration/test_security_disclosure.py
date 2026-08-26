@@ -73,3 +73,14 @@ def test_public_guide_list_hides_unapproved_guides(client, db_session):
     resp = client.get("/api/v1/guides")
     assert resp.status_code == 200
     assert len(resp.json()) == 1, "seuls les guides approuvés sont publics"
+
+
+def test_licence_and_cine_directories_are_not_served(client):
+    """Les documents d'identité ne doivent pas être servis en statique.
+
+    404 attendu — pas 403 : le montage ne doit pas exister du tout, pour ne pas
+    confirmer qu'un fichier donné est présent.
+    """
+    for path in ("/uploads/licenses/whatever.jpg", "/uploads/cines/whatever.jpg"):
+        resp = client.get(path)
+        assert resp.status_code == 404, f"{path} est encore servi ({resp.status_code})"

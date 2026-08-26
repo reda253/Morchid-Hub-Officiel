@@ -15,7 +15,7 @@ from .api import admin, auth, guides, health, premium, reviews, routes, search, 
 from .config import settings
 from .database import Base, engine
 from .exceptions import register_exception_handlers
-from .uploads import UPLOAD_DIR, ensure_upload_dirs
+from .uploads import PROFILE_DIR, ensure_upload_dirs
 
 
 def create_app() -> FastAPI:
@@ -35,9 +35,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Fichiers uploadés (photos de vérification) servis en statique.
+    # Fichiers uploadés servis en statique : UNIQUEMENT les photos de profil.
+    #
+    # Ne jamais élargir ce montage à UPLOAD_DIR : `uploads/licenses/` et
+    # `uploads/cines/` contiennent les licences professionnelles et les cartes
+    # d'identité nationales (CINE) des guides. Ces documents passent par
+    # l'endpoint authentifié /api/v1/admin/guides/{id}/documents/{type}.
     ensure_upload_dirs()
-    app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+    app.mount("/uploads/profiles", StaticFiles(directory=str(PROFILE_DIR)), name="profile-uploads")
 
     # Routers (couche API) — un module par domaine.
     app.include_router(health.router)
