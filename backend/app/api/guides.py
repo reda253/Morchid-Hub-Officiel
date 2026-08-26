@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from ..auth import get_current_user
 from ..models import User
-from ..schemas import GuideResponse, SuccessResponse
+from ..schemas import GuideResponse, PublicGuideCard, SuccessResponse
 from ..services.guide_service import GuideService
 from .deps import get_guide_service
 
@@ -38,10 +38,29 @@ async def verify_guide_identity(
     )
 
 
-@router.get("/guides", response_model=List[GuideResponse], tags=["Guides"])
+@router.get("/guides", response_model=List[PublicGuideCard], tags=["Guides"])
 async def get_all_guides(
     skip: int = 0,
     limit: int = 20,
     service: GuideService = Depends(get_guide_service),
 ):
-    return service.list_guides(skip=skip, limit=limit)
+    """Listing public des guides approuvés — aucune donnée personnelle."""
+    guides = service.list_guides(skip=skip, limit=limit)
+    return [
+        PublicGuideCard(
+            user_id=guide.user_id,
+            guide_id=guide.id,
+            full_name=(guide.user.full_name if guide.user else "") or "",
+            profile_photo_url=guide.profile_photo_url,
+            languages=guide.languages or [],
+            specialties=guide.specialties or [],
+            cities_covered=guide.cities_covered or [],
+            years_of_experience=guide.years_of_experience,
+            bio=guide.bio or "",
+            is_verified=guide.is_verified,
+            eco_score=guide.eco_score,
+            average_rating=guide.average_rating or 0.0,
+            total_reviews=guide.total_reviews or 0,
+        )
+        for guide in guides
+    ]

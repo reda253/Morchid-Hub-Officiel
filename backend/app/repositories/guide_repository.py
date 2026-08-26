@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, or_
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import joinedload
 
 from ..models import Guide, GuideRoute, User
 from .base import BaseRepository
@@ -45,7 +46,20 @@ class GuideRepository(BaseRepository):
 
     # ── Listes ────────────────────────────────────────────────────────────
     def list_paginated(self, skip: int = 0, limit: int = 20) -> List[Guide]:
-        return self.db.query(Guide).offset(skip).limit(limit).all()
+        """Guides visibles publiquement : approuvés uniquement.
+
+        Le filtre `approval_status` n'est pas cosmétique — sans lui, l'endpoint
+        public /api/v1/guides listait aussi les guides en attente et rejetés.
+        `joinedload` évite un N+1 : l'appelant lit `guide.user.full_name`.
+        """
+        return (
+            self.db.query(Guide)
+            .options(joinedload(Guide.user))
+            .filter(Guide.approval_status == "approved")
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def list_pending(self) -> List[Guide]:
         return self.list_by_status("pending")

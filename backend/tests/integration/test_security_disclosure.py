@@ -52,3 +52,24 @@ def test_search_guides_still_returns_useful_fields(client, db_session):
     assert card["full_name"]
     assert card["guide_id"]
     assert card["cities_covered"] == ["Fès"]
+
+
+def test_public_guide_list_exposes_no_personal_data(client, db_session):
+    guide = make_guide(db_session, approval_status="approved")
+    guide.license_card_url = "uploads/licenses/secret.jpg"
+    guide.cine_card_url = "uploads/cines/secret.jpg"
+    db_session.flush()
+
+    resp = client.get("/api/v1/guides")
+    assert resp.status_code == 200
+    _assert_no_forbidden_keys(resp.json())
+
+
+def test_public_guide_list_hides_unapproved_guides(client, db_session):
+    make_guide(db_session, approval_status="pending")
+    make_guide(db_session, approval_status="rejected")
+    make_guide(db_session, approval_status="approved")
+
+    resp = client.get("/api/v1/guides")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1, "seuls les guides approuvés sont publics"
