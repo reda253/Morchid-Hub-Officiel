@@ -148,13 +148,17 @@ class AuthService:
         """Variante lien navigateur : retourne None si invalide ou expiré."""
         return self._consume_verification_token(token)
 
-    def resend_verification(self, email: str) -> bool:
-        """Retourne True si un nouveau lien a été envoyé, False si le compte est inconnu."""
+    def resend_verification(self, email: str) -> None:
+        """Renvoie un lien de vérification si — et seulement si — c'est possible.
+
+        Ne retourne rien et ne lève rien : le contrôleur répond la même chose
+        dans les trois cas (compte inconnu, non vérifié, déjà vérifié). Un
+        statut ou un message différent laisserait un attaquant tester si une
+        adresse est inscrite, et distinguer en plus les comptes déjà vérifiés.
+        """
         user = self.users.get_by_email(email)
-        if not user:
-            return False  # ne pas révéler l'existence du compte
-        if user.is_email_verified:
-            raise BadRequestError("ALREADY_VERIFIED", "Votre email est déjà vérifié")
+        if not user or user.is_email_verified:
+            return
         new_token = generate_verification_token()
         user.verification_token = new_token
         user.verification_token_expires_at = get_token_expiry(hours=24)
@@ -162,14 +166,13 @@ class AuthService:
         self.notifier.send_verification_email(
             email=user.email, full_name=user.full_name, token=new_token
         )
-        return True
 
     # ── Réinitialisation de mot de passe ──────────────────────────────────
-    def forgot_password(self, email: str) -> bool:
-        """Retourne True si un lien de reset a été envoyé, False si le compte est inconnu."""
+    def forgot_password(self, email: str) -> None:
+        """Envoie un lien de réinitialisation si le compte existe. Toujours silencieux."""
         user = self.users.get_by_email(email)
         if not user:
-            return False  # ne pas révéler l'existence du compte
+            return
         reset_token = generate_reset_password_token()
         user.reset_password_token = reset_token
         user.reset_token_expires_at = get_token_expiry(hours=24)
@@ -177,7 +180,6 @@ class AuthService:
         self.notifier.send_password_reset_email(
             email=user.email, full_name=user.full_name, token=reset_token
         )
-        return True
 
     def get_reset_target(self, token: str) -> Optional[User]:
         """Utilisateur associé à un token de reset (pour la page de saisie simulée)."""

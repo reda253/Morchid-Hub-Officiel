@@ -72,25 +72,22 @@ async def verify_email_get(token: str, service: AuthService = Depends(get_auth_s
 async def resend_verification_email(
     request: ResendVerificationRequest, service: AuthService = Depends(get_auth_service)
 ):
-    sent = service.resend_verification(request.email)
-    message = (
-        "Un nouveau lien de vérification a été envoyé à votre adresse email."
-        if sent
-        else "Si cet email existe, un nouveau lien de vérification a été envoyé."
+    service.resend_verification(request.email)
+    return SuccessResponse(
+        status="success",
+        message="Si cet email existe et n'est pas encore vérifié, un nouveau lien a été envoyé.",
     )
-    return SuccessResponse(status="success", message=message)
 
 
 @router.post("/auth/forgot-password", response_model=SuccessResponse)
 async def forgot_password(
     request: ForgotPasswordRequest, service: AuthService = Depends(get_auth_service)
 ):
-    sent = service.forgot_password(request.email)
-    data = {"email_sent_to": request.email} if sent else None
+    service.forgot_password(request.email)
     return SuccessResponse(
         status="success",
         message="Si cet email existe, un lien de réinitialisation a été envoyé.",
-        data=data,
+        data=None,
     )
 
 

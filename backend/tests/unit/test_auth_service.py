@@ -191,46 +191,49 @@ def test_verify_email_success_clears_token():
 
 
 # ── Renvoi de vérification ─────────────────────────────────────────────────
-def test_resend_verification_unknown_returns_false():
+# Ces méthodes ne retournent plus rien et ne lèvent plus rien : l'appelant ne
+# doit pas pouvoir distinguer les trois états. On vérifie donc l'effet de bord
+# (email envoyé ou non), seul comportement observable qui reste.
+def test_resend_verification_unknown_sends_nothing():
     svc = _service()
     svc.users.get_by_email.return_value = None
-    assert svc.resend_verification("nobody@example.com") is False
+    assert svc.resend_verification("nobody@example.com") is None
     svc.notifier.send_verification_email.assert_not_called()
 
 
-def test_resend_verification_already_verified_raises():
+def test_resend_verification_already_verified_is_silent():
     svc = _service()
     svc.users.get_by_email.return_value = SimpleNamespace(is_email_verified=True)
-    with pytest.raises(BadRequestError) as exc:
-        svc.resend_verification("user@example.com")
-    assert exc.value.error_code == "ALREADY_VERIFIED"
+    # Ne lève pas : un ALREADY_VERIFIED révélerait un troisième état distinguable.
+    assert svc.resend_verification("user@example.com") is None
+    svc.notifier.send_verification_email.assert_not_called()
 
 
-def test_resend_verification_success_returns_true_and_sends():
+def test_resend_verification_unverified_sends():
     svc = _service()
     svc.users.get_by_email.return_value = SimpleNamespace(
         is_email_verified=False, email="user@example.com", full_name="U",
         verification_token=None, verification_token_expires_at=None,
     )
-    assert svc.resend_verification("user@example.com") is True
+    assert svc.resend_verification("user@example.com") is None
     svc.notifier.send_verification_email.assert_called_once()
 
 
 # ── Mot de passe oublié / reset ────────────────────────────────────────────
-def test_forgot_password_unknown_returns_false_no_leak():
+def test_forgot_password_unknown_sends_nothing():
     svc = _service()
     svc.users.get_by_email.return_value = None
-    assert svc.forgot_password("nobody@example.com") is False
+    assert svc.forgot_password("nobody@example.com") is None
     svc.notifier.send_password_reset_email.assert_not_called()
 
 
-def test_forgot_password_success_returns_true_and_sends():
+def test_forgot_password_known_sends():
     svc = _service()
     svc.users.get_by_email.return_value = SimpleNamespace(
         email="user@example.com", full_name="U",
         reset_password_token=None, reset_token_expires_at=None,
     )
-    assert svc.forgot_password("user@example.com") is True
+    assert svc.forgot_password("user@example.com") is None
     svc.notifier.send_password_reset_email.assert_called_once()
 
 
