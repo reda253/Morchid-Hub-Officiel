@@ -119,7 +119,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final guide = widget.profile.guideProfile;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          // Accès admin. Le shell n'a que deux jeux d'onglets (touriste, guide),
+          // donc la route /admin n'était atteignable depuis aucun écran depuis
+          // que home_screen.dart a été remplacé par MainShell.
+          //
+          // `isAdmin` n'est qu'un cache d'affichage rafraîchi à la connexion
+          // depuis la liste blanche ADMIN_EMAILS : il décide seulement si le
+          // bouton est visible. L'autorisation réelle reste `require_admin`
+          // côté serveur, qui ne lit jamais cette colonne.
+          if (user.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings),
+              tooltip: 'Administration',
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.admin),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
