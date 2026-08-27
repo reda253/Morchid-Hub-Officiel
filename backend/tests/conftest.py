@@ -150,3 +150,18 @@ def client(db_session):
         yield test_client
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Vide les compteurs de débit entre les tests.
+
+    Le stockage slowapi est global au processus : sans ce reset, un test qui
+    déclenche la limite ferait échouer les suivants de façon non déterministe,
+    selon l'ordre d'exécution.
+    """
+    from app.rate_limit import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()

@@ -1,9 +1,10 @@
 """Controller Authentification & Profil — inscription, connexion, email, mot de passe."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from ..auth import get_current_user
 from ..models import User
+from ..rate_limit import limiter
 from ..schemas import (
     ForgotPasswordRequest,
     GuideResponse,
@@ -25,8 +26,11 @@ router = APIRouter(prefix="/api/v1", tags=["Authentication"])
 
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/hour")
 async def register_user(
-    user_data: UserRegistration, service: AuthService = Depends(get_auth_service)
+    request: Request,
+    user_data: UserRegistration,
+    service: AuthService = Depends(get_auth_service),
 ):
     user, guide_profile, message = service.register(user_data)
     return RegistrationResponse(
@@ -38,7 +42,12 @@ async def register_user(
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login_user(credentials: UserLogin, service: AuthService = Depends(get_auth_service)):
+@limiter.limit("10/15minutes")
+async def login_user(
+    request: Request,
+    credentials: UserLogin,
+    service: AuthService = Depends(get_auth_service),
+):
     user, access_token = service.login(credentials.email, credentials.password)
     return TokenResponse(
         access_token=access_token, token_type="bearer", user=UserResponse.from_orm(user)
@@ -69,10 +78,13 @@ async def verify_email_get(token: str, service: AuthService = Depends(get_auth_s
 
 
 @router.post("/auth/resend-verification", response_model=SuccessResponse)
+@limiter.limit("5/hour")
 async def resend_verification_email(
-    request: ResendVerificationRequest, service: AuthService = Depends(get_auth_service)
+    request: Request,
+    body: ResendVerificationRequest,
+    service: AuthService = Depends(get_auth_service),
 ):
-    service.resend_verification(request.email)
+    service.resend_verification(body.email)
     return SuccessResponse(
         status="success",
         message="Si cet email existe et n'est pas encore vérifié, un nouveau lien a été envoyé.",
@@ -80,10 +92,13 @@ async def resend_verification_email(
 
 
 @router.post("/auth/forgot-password", response_model=SuccessResponse)
+@limiter.limit("5/hour")
 async def forgot_password(
-    request: ForgotPasswordRequest, service: AuthService = Depends(get_auth_service)
+    request: Request,
+    body: ForgotPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
 ):
-    service.forgot_password(request.email)
+    service.forgot_password(body.email)
     return SuccessResponse(
         status="success",
         message="Si cet email existe, un lien de réinitialisation a été envoyé.",
@@ -106,10 +121,13 @@ async def reset_password_page(token: str, service: AuthService = Depends(get_aut
 
 
 @router.post("/auth/reset-password", response_model=SuccessResponse)
+@limiter.limit("10/hour")
 async def reset_password(
-    request: ResetPasswordRequest, service: AuthService = Depends(get_auth_service)
+    request: Request,
+    body: ResetPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
 ):
-    service.reset_password(request.token, request.new_password)
+    service.reset_password(body.token, body.new_password)
     return SuccessResponse(
         status="success",
         message="Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
