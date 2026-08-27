@@ -74,9 +74,19 @@ class UserRegistration(BaseModel):
     """Schema pour l'inscription d'un utilisateur"""
     personal_info: PersonalInfo
     role: str = Field(..., pattern='^(tourist|guide)$')
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=10)
     guide_details: Optional[GuideDetails] = None
-    
+
+    @validator('password')
+    def validate_password_rules(cls, v):
+        """Applique la politique unique définie dans auth.validate_password_strength."""
+        from .auth import validate_password_strength
+
+        valid, message = validate_password_strength(v)
+        if not valid:
+            raise ValueError(message)
+        return v
+
     @validator('guide_details')
     def validate_guide_details(cls, v, values):
         """Vérifie que guide_details est fourni si role = 'guide'"""
@@ -187,15 +197,18 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     """Réinitialisation du mot de passe avec token"""
     token: str
-    new_password: str = Field(..., min_length=6)
-    
+    new_password: str = Field(..., min_length=10)
+
     @validator('new_password')
-    def validate_password_strength(cls, v):
-        """Vérifie la force du mot de passe"""
-        if not any(c.isalpha() for c in v):
-            raise ValueError('Le mot de passe doit contenir au moins une lettre')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+    def validate_password_rules(cls, v):
+        """Même politique qu'à l'inscription : une réinitialisation ne doit pas
+        permettre de poser un mot de passe plus faible que celui exigé au
+        départ. La règle vit dans auth.validate_password_strength, pas ici."""
+        from .auth import validate_password_strength
+
+        valid, message = validate_password_strength(v)
+        if not valid:
+            raise ValueError(message)
         return v
     
 class VerifyEmailRequest(BaseModel):

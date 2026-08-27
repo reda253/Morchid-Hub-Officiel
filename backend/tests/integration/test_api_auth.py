@@ -16,7 +16,7 @@ def _registration_body(email="newuser@example.com", phone="0612345678"):
             "date_of_birth": "1990-01-01",
         },
         "role": "tourist",
-        "password": "secret123",
+        "password": "Marrakech2026",
     }
 
 
@@ -53,7 +53,7 @@ def test_login_wrong_password_returns_401(client):
 def test_login_success_returns_token(client):
     client.post("/api/v1/register", json=_registration_body(email="ok@example.com", phone="0612345604"))
     resp = client.post(
-        "/api/v1/login", json={"email": "ok@example.com", "password": "secret123"}
+        "/api/v1/login", json={"email": "ok@example.com", "password": "Marrakech2026"}
     )
     assert resp.status_code == 200
     body = resp.json()

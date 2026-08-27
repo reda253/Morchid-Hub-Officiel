@@ -115,8 +115,8 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     Returns:
         (is_valid, message)
     """
-    if len(password) < 6:
-        return False, "Le mot de passe doit contenir au moins 6 caractères"
+    if len(password) < 10:
+        return False, "Le mot de passe doit contenir au moins 10 caractères"
     
     # Vérifier qu'il contient au moins une lettre et un chiffre
     has_letter = any(c.isalpha() for c in password)

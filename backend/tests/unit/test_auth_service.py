@@ -36,7 +36,7 @@ def _tourist_registration():
             "date_of_birth": "1990-01-01",
         },
         role="tourist",
-        password="secret123",
+        password="Marrakech2026",
     )
 
 
@@ -49,7 +49,7 @@ def _guide_registration():
             "date_of_birth": "1985-01-01",
         },
         role="guide",
-        password="secret123",
+        password="Marrakech2026",
         guide_details={
             "languages": ["Français"],
             "specialties": ["culture"],
