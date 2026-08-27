@@ -15,6 +15,7 @@ from .api import admin, auth, guides, health, premium, reviews, routes, search, 
 from .config import settings
 from .database import Base, engine
 from .exceptions import register_exception_handlers
+from .rate_limit import register_rate_limiting
 from .uploads import PROFILE_DIR, ensure_upload_dirs
 
 
@@ -55,6 +56,9 @@ def create_app() -> FastAPI:
     app.include_router(search.router)
     app.include_router(time_slots.router)
 
+    # L'ordre compte : le handler RateLimitExceeded doit être enregistré avant
+    # le handler attrape-tout Exception, sinon les 429 ressortiraient en 500.
+    register_rate_limiting(app)
     register_exception_handlers(app)
 
     @app.on_event("startup")

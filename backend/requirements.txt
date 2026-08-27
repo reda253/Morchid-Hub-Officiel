@@ -41,3 +41,4 @@ pytest-cov==4.1.0
 
 geoalchemy2
 shapely
+slowapi==0.1.9
