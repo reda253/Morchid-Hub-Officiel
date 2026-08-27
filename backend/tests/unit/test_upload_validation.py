@@ -43,17 +43,24 @@ def test_accepts_valid_jpeg(tmp_path):
     assert "/" in stored
 
 
-def test_returns_a_relative_forward_slash_path():
+def test_returns_a_relative_forward_slash_path(tmp_path, monkeypatch):
     """Le chemin retourné est relatif à backend/ et utilise des '/'.
 
     L'ancienne implémentation faisait `relative_to(Path("."))` sur un chemin
     absolu, ce qui levait ValueError après avoir déjà écrit le fichier : tout
     upload réel échouait en 500.
-    """
-    from app.uploads import PROFILE_DIR, ensure_upload_dirs
 
-    ensure_upload_dirs()
-    stored = save_upload_file(_upload("photo.png", b"\x89PNG\r\n\x1a\n suite"), PROFILE_DIR)
+    On déplace BASE_DIR sur tmp_path plutôt que d'écrire dans le vrai
+    backend/uploads/ — un test ne doit pas laisser de fichiers dans le dépôt.
+    """
+    import app.uploads as uploads
+
+    profiles = tmp_path / "uploads" / "profiles"
+    profiles.mkdir(parents=True)
+    monkeypatch.setattr(uploads, "BASE_DIR", tmp_path)
+
+    stored = save_upload_file(_upload("photo.png", b"\x89PNG\r\n\x1a\n suite"), profiles)
 
     assert stored.startswith("uploads/profiles/")
+    assert stored.endswith(".png")
     assert "\\" not in stored
