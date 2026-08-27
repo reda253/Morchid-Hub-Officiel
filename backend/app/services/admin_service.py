@@ -32,6 +32,11 @@ class AdminService:
                 "SELF_DEACTIVATION", "Vous ne pouvez pas désactiver votre propre compte"
             )
         user.is_active = not user.is_active
+        if not user.is_active:
+            # Sans cet incrément, `is_active=False` ne changerait qu'une colonne
+            # que les sessions déjà ouvertes ne relisent jamais : le compte
+            # resterait utilisable jusqu'à l'expiration naturelle du JWT.
+            user.token_version = (user.token_version or 0) + 1
         self.db.commit()
         self.db.refresh(user)
         return user

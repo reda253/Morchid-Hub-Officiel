@@ -194,6 +194,20 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Révocation : un token émis avant un incrément de token_version est refusé.
+    # C'est ce qui permet à une désactivation de compte ou à un changement de
+    # mot de passe de couper les sessions en cours — un JWT étant sans état,
+    # rien d'autre ne peut l'invalider avant son expiration.
+    if payload.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error_code": "TOKEN_REVOKED",
+                "message": "Session expirée, reconnectez-vous",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

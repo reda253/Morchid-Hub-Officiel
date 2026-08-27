@@ -111,7 +111,12 @@ class AuthService:
         self.db.commit()
 
         access_token = create_access_token(
-            {"sub": user.id, "email": user.email, "role": user.role}
+            {
+                "sub": user.id,
+                "email": user.email,
+                "role": user.role,
+                "tv": user.token_version or 0,
+            }
         )
         return user, access_token
 
@@ -197,6 +202,9 @@ class AuthService:
                 "Le token a expiré. Demandez un nouveau lien de réinitialisation.",
             )
         user.password_hash = hash_password(new_password)
+        # Révoque toutes les sessions ouvertes : un mot de passe changé après un
+        # vol de token doit couper l'accès de l'attaquant.
+        user.token_version = (user.token_version or 0) + 1
         user.reset_password_token = None
         user.reset_token_expires_at = None
         self.db.commit()

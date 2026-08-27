@@ -91,3 +91,17 @@ def test_verification_link_rejects_expired_token(client, db_session):
 
     db_session.refresh(user)
     assert user.is_email_verified is False, "un token expiré ne doit pas vérifier le compte"
+
+
+def test_bumping_token_version_revokes_existing_token(client, db_session):
+    """Un token émis avant l'incrément doit être refusé après."""
+    user = make_user(db_session, role="tourist")
+    headers = auth_headers(user)
+
+    assert client.get("/api/v1/auth/me", headers=headers).status_code == 200
+
+    user.token_version += 1
+    db_session.flush()
+
+    resp = client.get("/api/v1/auth/me", headers=headers)
+    assert resp.status_code == 401, "le token d'avant l'incrément doit être révoqué"

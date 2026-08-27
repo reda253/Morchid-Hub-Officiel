@@ -114,7 +114,7 @@ def _auth_service():
 def _login_user(email, is_admin):
     return SimpleNamespace(
         id="u1", email=email, role="tourist", is_admin=is_admin,
-        password_hash=hash_password("goodpass"), is_active=True,
+        password_hash=hash_password("goodpass"), is_active=True, token_version=0,
     )
 
 

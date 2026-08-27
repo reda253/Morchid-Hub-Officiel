@@ -39,10 +39,12 @@ def test_toggle_user_status_unknown_raises():
 
 def test_toggle_user_status_flips_active():
     svc = _service()
-    user = SimpleNamespace(id="u2", is_active=True)
+    user = SimpleNamespace(id="u2", is_active=True, token_version=0)
     svc.users.get_by_id.return_value = user
     result = svc.toggle_user_status("u2", SimpleNamespace(id="a1"))
     assert result.is_active is False
+    # Désactiver doit couper les sessions ouvertes, pas seulement lever un drapeau.
+    assert result.token_version == 1
 
 
 # ── Approbation guides ─────────────────────────────────────────────────────

@@ -190,5 +190,12 @@ def make_subscription(
 
 def auth_headers(user: User) -> dict:
     """En-tête Authorization Bearer pour un utilisateur donné."""
-    token = create_access_token({"sub": user.id, "email": user.email, "role": user.role})
+    token = create_access_token(
+        {
+            "sub": user.id,
+            "email": user.email,
+            "role": user.role,
+            "tv": user.token_version or 0,
+        }
+    )
     return {"Authorization": f"Bearer {token}"}

@@ -144,7 +144,7 @@ def test_login_success_returns_decodable_token():
     svc = _service()
     user = SimpleNamespace(
         id="u1", email="user@example.com", role="guide",
-        password_hash=hash_password("goodpass"), is_active=True,
+        password_hash=hash_password("goodpass"), is_active=True, token_version=0,
     )
     svc.users.get_by_email.return_value = user
 
@@ -253,11 +253,14 @@ def test_reset_password_success_updates_hash_and_confirms():
         reset_token_expires_at=datetime.utcnow() + timedelta(hours=1),
         password_hash=hash_password("oldpass"),
         reset_password_token="t", email="user@example.com", full_name="U",
+        token_version=0,
     )
     svc.users.get_by_reset_token.return_value = user
     result = svc.reset_password("t", "newpass123")
     assert result.password_hash != hash_password("oldpass")  # hash changé
     assert result.reset_password_token is None
+    # Un mot de passe changé après un vol de token doit révoquer les sessions.
+    assert result.token_version == 1
     svc.notifier.send_password_changed_confirmation.assert_called_once()
 
 
