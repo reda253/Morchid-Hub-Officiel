@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import '../services/osm_service.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/app_colors.dart';
 
 /// Écran de carte interactif avec routing et tracking GPS
 /// Intégré au design system Morchid Hub
@@ -138,14 +140,13 @@ class _MapScreenState extends State<MapScreen> {
   // ── Vue touriste : timeline dépliée ──────────────────────────────────────
   bool _showTimeline = true;
   // Couleurs du design system Morchid Hub
-  static const Color primaryColor = Color(0xFF2D6A4F);
-  static const Color secondaryColor = Color(0xFF1B4332);
-  static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color textDark        = Color(0xFF2B2D42);
-  static const Color textLight       = Color(0xFF8D99AE);
-  static const Color warningColor = Color(0xFFFF9800);
-  static const Color errorColor = Color(0xFFE63946);
-  static const Color successColor = Color(0xFF52B788);
+  static const Color primaryColor = AppColors.primary;
+  static const Color backgroundColor = AppColors.background;
+  static const Color textDark        = AppColors.textDark;
+  static const Color textLight       = AppColors.textLight;
+  static const Color warningColor = AppColors.warning;
+  static const Color errorColor = AppColors.error;
+  static const Color successColor = AppColors.success;
 
   @override
   void initState() {
@@ -343,44 +344,6 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-  // ✅ Construire les markers de checkpoints dynamiquement
-  List<Marker> _buildCheckpointMarkers() {
-    return List.generate(_checkpoints.length, (i) {
-      final cp         = _checkpoints[i];
-      final isHighlighted = _highlightedCheckpointIndex == i;
-      return Marker(
-        point:  cp.position,
-        width:  isHighlighted ? 60 : 48,
-        height: isHighlighted ? 60 : 48,
-        child: GestureDetector(
-          onTap: () {
-            setState(() => _highlightedCheckpointIndex = i);
-            _mapController.move(cp.position, 16.0);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: cp.type.color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isHighlighted ? Colors.white : Colors.transparent,
-                width: isHighlighted ? 3 : 0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: cp.type.color.withOpacity(0.5),
-                  blurRadius: isHighlighted ? 12 : 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(cp.type.icon, color: Colors.white, size: isHighlighted ? 30 : 22),
-          ),
-        ),
-      );
-    });
-  }
-
   // ============================================
   // CALCUL DU TRAJET
   // ============================================
@@ -451,15 +414,15 @@ class _MapScreenState extends State<MapScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.add_location_alt, color: primaryColor, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text('Ajouter un point d\'intérêt',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textDark),
+                      style: AppTextStyles.titleMd.copyWith(fontSize: 17, fontWeight: FontWeight.bold, color: textDark),
                     ),
                   ),
                 ]),
@@ -520,7 +483,7 @@ class _MapScreenState extends State<MapScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('Annuler', style: TextStyle(color: primaryColor)),
+                      child: Text('Annuler', style: AppTextStyles.bodySm.copyWith(color: primaryColor, fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -551,7 +514,7 @@ class _MapScreenState extends State<MapScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('Ajouter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text('Ajouter', style: AppTextStyles.bodySm.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ]),
@@ -600,15 +563,15 @@ class _MapScreenState extends State<MapScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.article_outlined, color: primaryColor),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text('Histoire du trajet',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textDark)),
+                  style: AppTextStyles.titleMd.copyWith(fontSize: 17, fontWeight: FontWeight.bold, color: textDark)),
               ),
             ]),
             const SizedBox(height: 16),
@@ -617,7 +580,7 @@ class _MapScreenState extends State<MapScreen> {
               maxLines: 6,
               decoration: InputDecoration(
                 hintText: 'Racontez l\'histoire de votre itinéraire, les lieux traversés, les anecdotes…',
-                hintStyle: TextStyle(color: textLight.withOpacity(0.7)),
+                hintStyle: AppTextStyles.bodySm.copyWith(color: textLight.withValues(alpha: 0.7)),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -634,7 +597,7 @@ class _MapScreenState extends State<MapScreen> {
                     side: const BorderSide(color: primaryColor),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Annuler', style: TextStyle(color: primaryColor)),
+                  child: Text('Annuler', style: AppTextStyles.bodySm.copyWith(color: primaryColor, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -649,7 +612,7 @@ class _MapScreenState extends State<MapScreen> {
                     backgroundColor: primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Sauvegarder', style: TextStyle(color: Colors.white)),
+                  child: Text('Sauvegarder', style: AppTextStyles.bodySm.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600)),
                 ),
               ),
             ]),
@@ -785,7 +748,7 @@ class _MapScreenState extends State<MapScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isSuccess ? successColor : Colors.grey[800],
+        backgroundColor: isSuccess ? successColor : AppColors.textDark,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
@@ -820,14 +783,14 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: Text(
           isView ? 'Itinéraire touristique' : 'Créer un trajet',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: AppTextStyles.titleMd.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w700),
         ),
         backgroundColor: primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppColors.onPrimary),
         actions: [
           if (!isView) ...[
             IconButton(
-              icon: Icon(Icons.article_outlined, color: _routeDescription != null ? Colors.amber : Colors.white),
+              icon: Icon(Icons.article_outlined, color: _routeDescription != null ? AppColors.star : AppColors.onPrimary),
               onPressed: _showDescriptionDialog,
             ),
             IconButton(
@@ -858,11 +821,14 @@ class _MapScreenState extends State<MapScreen> {
           top: 12, left: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-            child: const Row(children: [
-              Icon(Icons.touch_app, color: Colors.white, size: 13),
-              SizedBox(width: 4),
-              Text('Appui long → ajouter un checkpoint', style: TextStyle(color: Colors.white, fontSize: 11)),
+            decoration: BoxDecoration(
+              color: Colors.black54, // alpha-on-image overlay: translucent scrim atop the map tiles
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(children: [
+              const Icon(Icons.touch_app, color: AppColors.onImage, size: 13),
+              const SizedBox(width: 4),
+              Text('Appui long → ajouter un checkpoint', style: AppTextStyles.bodyXs.copyWith(color: AppColors.onImage, fontSize: 11)),
             ]),
           ),
         ),
@@ -892,7 +858,7 @@ class _MapScreenState extends State<MapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(20)),
-              child: Text('${_checkpoints.length} points d\'intérêt', style: const TextStyle(color: Colors.white, fontSize: 12)),
+              child: Text('${_checkpoints.length} points d\'intérêt', style: AppTextStyles.bodyXs.copyWith(color: AppColors.onPrimary, fontSize: 12)),
             ),
           ),
         ]),
@@ -907,15 +873,15 @@ class _MapScreenState extends State<MapScreen> {
   // ── LA TIMELINE (LISTE DES POINTS) ────────────────────────────────
   Widget _buildTimeline() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('Points d\'intérêt du trajet', style: TextStyle(fontWeight: FontWeight.bold, color: textDark)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text('Points d\'intérêt du trajet', style: AppTextStyles.titleSm.copyWith(fontWeight: FontWeight.bold, color: textDark)),
           ),
           const Divider(height: 1),
           Expanded(
@@ -924,17 +890,17 @@ class _MapScreenState extends State<MapScreen> {
               itemBuilder: (context, index) {
                 final cp = _checkpoints[index];
                 final isSelected = _highlightedCheckpointIndex == index;
-                
+
                 return ListTile(
                   selected: isSelected,
-                  selectedTileColor: primaryColor.withOpacity(0.05),
+                  selectedTileColor: primaryColor.withValues(alpha: 0.05),
                   leading: CircleAvatar(
                     backgroundColor: cp.type.color,
-                    child: Icon(cp.type.icon, color: Colors.white, size: 20),
+                    child: Icon(cp.type.icon, color: AppColors.onPrimary, size: 20),
                   ),
-                  title: Text(cp.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  title: Text(cp.name, style: AppTextStyles.titleSm.copyWith(fontWeight: FontWeight.bold)),
                   subtitle: Text(cp.description, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: Text('${cp.estimatedTime} min', style: const TextStyle(fontSize: 12, color: textLight)),
+                  trailing: Text('${cp.estimatedTime} min', style: AppTextStyles.bodyXs.copyWith(fontSize: 12, color: textLight)),
                   onTap: () {
                     setState(() => _highlightedCheckpointIndex = index);
                     _mapController.move(cp.position, 16.0); // Centre la carte sur le point
@@ -988,7 +954,7 @@ class _MapScreenState extends State<MapScreen> {
   }
   Widget _buildLoader() {
     return Container(
-      color: Colors.black26,
+      color: Colors.black26, // alpha-on-image overlay: dims the map behind the loading card
       child: const Center(
         child: Card(
           child: Padding(
@@ -1035,9 +1001,9 @@ class _MapScreenState extends State<MapScreen> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: warningColor.withOpacity(0.1),
+        color: warningColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: warningColor.withOpacity(0.3)),
+        border: Border.all(color: warningColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -1046,7 +1012,7 @@ class _MapScreenState extends State<MapScreen> {
           Expanded(
             child: Text(
               'Trajets gratuits : $currentRoutes/$maxRoutes utilisés',
-              style: TextStyle(fontSize: 13, color: textDark),
+              style: AppTextStyles.bodyXs.copyWith(fontSize: 13, color: textDark),
             ),
           ),
         ],
@@ -1076,7 +1042,7 @@ class _MapScreenState extends State<MapScreen> {
       Icon(icon, color: primaryColor),
       const SizedBox(width: 12),
       Expanded(
-        child: Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        child: Text(text, style: AppTextStyles.bodyLg.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: textDark)),
       ),
     ]);
   }
@@ -1086,23 +1052,23 @@ class _MapScreenState extends State<MapScreen> {
       decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(8)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (_startAddress != null) ...[
-          const Row(children: [
-            Icon(Icons.play_arrow, size: 16, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Départ:', style: TextStyle(fontWeight: FontWeight.bold)),
+          Row(children: [
+            const Icon(Icons.play_arrow, size: 16, color: successColor),
+            const SizedBox(width: 8),
+            Text('Départ:', style: AppTextStyles.titleSm.copyWith(fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 4),
-          Text(_startAddress!, style: const TextStyle(fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(_startAddress!, style: AppTextStyles.bodyXs.copyWith(fontSize: 12, color: textDark), maxLines: 2, overflow: TextOverflow.ellipsis),
         ],
         if (_startAddress != null && _endAddress != null) const SizedBox(height: 8),
         if (_endAddress != null) ...[
-          const Row(children: [
-            Icon(Icons.flag, size: 16, color: errorColor),
-            SizedBox(width: 8),
-            Text('Arrivée:', style: TextStyle(fontWeight: FontWeight.bold)),
+          Row(children: [
+            const Icon(Icons.flag, size: 16, color: errorColor),
+            const SizedBox(width: 8),
+            Text('Arrivée:', style: AppTextStyles.titleSm.copyWith(fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 4),
-          Text(_endAddress!, style: const TextStyle(fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(_endAddress!, style: AppTextStyles.bodyXs.copyWith(fontSize: 12, color: textDark), maxLines: 2, overflow: TextOverflow.ellipsis),
         ],
       ]),
     );
@@ -1117,7 +1083,7 @@ class _MapScreenState extends State<MapScreen> {
             label: Text(_isTracking ? 'Arrêter' : 'Démarrer'),
             style: ElevatedButton.styleFrom(
               backgroundColor: _isTracking ? warningColor : primaryColor,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -1137,7 +1103,7 @@ class _MapScreenState extends State<MapScreen> {
               : 'Enregistrer (${_checkpoints.length} points)'),
           style: ElevatedButton.styleFrom(
             backgroundColor: successColor,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -1152,7 +1118,7 @@ class _MapScreenState extends State<MapScreen> {
             label: Text(_isTracking ? 'Arrêter' : 'Démarrer'),
             style: ElevatedButton.styleFrom(
               backgroundColor: _isTracking ? warningColor : primaryColor,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -1194,9 +1160,9 @@ class _MapScreenState extends State<MapScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Définissez le prix de votre circuit',
-              style: TextStyle(fontSize: 14, color: textLight),
+              style: AppTextStyles.bodySm.copyWith(color: textLight),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1231,9 +1197,9 @@ class _MapScreenState extends State<MapScreen> {
                   const Icon(Icons.info_outline, size: 18, color: primaryColor),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: const Text(
+                    child: Text(
                       'Laissez vide pour un trajet gratuit',
-                      style: TextStyle(fontSize: 12, color: textDark),
+                      style: AppTextStyles.bodyXs.copyWith(fontSize: 12, color: textDark),
                     ),
                   ),
                 ],
@@ -1269,7 +1235,7 @@ class _MapScreenState extends State<MapScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+            child: Text('Confirmer', style: AppTextStyles.bodySm.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

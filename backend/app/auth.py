@@ -115,8 +115,8 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     Returns:
         (is_valid, message)
     """
-    if len(password) < 6:
-        return False, "Le mot de passe doit contenir au moins 6 caractères"
+    if len(password) < 10:
+        return False, "Le mot de passe doit contenir au moins 10 caractères"
     
     # Vérifier qu'il contient au moins une lettre et un chiffre
     has_letter = any(c.isalpha() for c in password)
@@ -194,6 +194,20 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Révocation : un token émis avant un incrément de token_version est refusé.
+    # C'est ce qui permet à une désactivation de compte ou à un changement de
+    # mot de passe de couper les sessions en cours — un JWT étant sans état,
+    # rien d'autre ne peut l'invalider avant son expiration.
+    if payload.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error_code": "TOKEN_REVOKED",
+                "message": "Session expirée, reconnectez-vous",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -204,3 +218,20 @@ def get_current_user(
         )
     
     return user
+
+# ============================================
+# AUTORISATION ADMINISTRATEUR
+# ============================================
+
+def is_admin_email(user) -> bool:
+    """Seule autorité pour « ce compte est-il administrateur ? ».
+
+    La source de vérité est la liste blanche `ADMIN_EMAILS` (config), jamais la
+    colonne `user.is_admin` — celle-ci n'est qu'un cache rafraîchi à la
+    connexion, destiné à l'affichage côté client, et elle dérive dès qu'un
+    email entre ou sort de la liste pendant qu'un JWT reste valide.
+
+    Tout contrôle d'accès doit passer par ici (ou par `require_admin`, qui
+    l'appelle). Ne jamais lire `user.is_admin` pour décider d'un droit.
+    """
+    return (getattr(user, "email", None) or "").strip().lower() in settings.admin_emails_list

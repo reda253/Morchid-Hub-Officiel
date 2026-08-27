@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../widgets/auth_widgets.dart';
+import '../widgets/inline_error.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   bool _isResending = false;
   bool _canResend = true;
   int _countdown = 0;
+  String? _resendError;
   Timer? _timer;
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
@@ -70,6 +73,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
     setState(() {
       _isResending = true;
+      _resendError = null;
     });
 
     try {
@@ -95,17 +99,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     } catch (e) {
       setState(() {
         _isResending = false;
+        _resendError = e.toString();
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
     }
   }
 
@@ -153,11 +148,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
               Text(
                 'Vérifiez votre email',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
-                ),
+                style: AppTextStyles.displayMd,
               ),
 
               const SizedBox(height: 16),
@@ -166,11 +157,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
               Text(
                 'Bienvenue ${widget.fullName} ! 🎉',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
               ),
 
               const SizedBox(height: 24),
@@ -179,10 +166,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
               Text(
                 'Nous avons envoyé un lien de vérification à',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.textLight.withOpacity(0.8),
-                ),
+                style: AppTextStyles.bodyLg.copyWith(color: AppColors.textLight),
               ),
 
               const SizedBox(height: 8),
@@ -200,10 +184,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                 child: Text(
                   widget.email,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyles.bodyLg.copyWith(
                     color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -214,11 +197,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: AppColors.shadow,
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -285,13 +268,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   child: Text(
                     'Renvoyer dans $_countdown secondes',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: AppTextStyles.bodyLg.copyWith(
                       color: AppColors.textLight,
-                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
+
+              InlineError(message: _resendError),
 
               const SizedBox(height: 16),
 
@@ -300,11 +284,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                 onPressed: () {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
-                child: const Text(
+                child: Text(
                   'Retour à la connexion',
-                  style: TextStyle(
-                    color: AppColors.textLight,
-                    fontSize: 14,
+                  style: AppTextStyles.bodySm.copyWith(
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -346,19 +328,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textDark,
-                ),
+                style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textLight.withOpacity(0.8),
-                ),
+                style: AppTextStyles.bodyXs,
               ),
             ],
           ),

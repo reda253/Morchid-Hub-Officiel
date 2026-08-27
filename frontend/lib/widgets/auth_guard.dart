@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart'; // Requires your storage service
-import '../models/admin_models.dart';
+import '../routes/app_routes.dart';
+import 'error_state.dart';
 
 class AuthGuard extends StatefulWidget {
   final Widget child;
@@ -28,36 +29,53 @@ class _AuthGuardState extends State<AuthGuard> {
 
   Future<void> _checkAuth() async {
     final isLoggedIn = await StorageService.isLoggedIn();
-    
+    if (!mounted) return;
+
     if (!isLoggedIn) {
-      if (mounted) _redirectToLogin();
+      _redirectToLogin();
       return;
     }
-    final userData = await StorageService.getUserData();
-    print("Current User Role: ${userData?.role}, Is Admin: ${userData?.isAdmin}");
 
-    if (widget.allowedRoles != null) {
-      if (userData != null && (widget.allowedRoles!.contains(userData.role) || userData.isAdmin == true)) {
-        if (mounted) setState(() { _isAuthorized = true; _isLoading = false; });
-      } else {
-         if (mounted) _redirectToLogin(message: 'Accès non autorisé');
-      }
-    } else {
-      if (mounted) setState(() { _isAuthorized = true; _isLoading = false; });
-    }
+    final userData = await StorageService.getUserData();
+    if (!mounted) return;
+
+    final roles = widget.allowedRoles;
+    final authorized = roles == null ||
+        (userData != null &&
+            (roles.contains(userData.role) || userData.isAdmin == true));
+
+    setState(() {
+      _isAuthorized = authorized;
+      _isLoading = false;
+    });
   }
 
-  void _redirectToLogin({String? message}) {
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-    if (message != null) {
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    }
+  void _redirectToLogin() {
+    // Le SnackBar doit partir AVANT la navigation : pushNamedAndRemoveUntil
+    // démonte ce contexte, et ScaffoldMessenger.of(context) échouerait après.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Veuillez vous connecter')),
+    );
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     if (_isAuthorized) return widget.child;
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    return Scaffold(
+      body: ErrorState(
+        icon: Icons.block,
+        title: 'Accès refusé',
+        message: 'Vous n\'avez pas les droits nécessaires pour cette page.',
+        onRetry: () => Navigator.of(context)
+            .pushNamedAndRemoveUntil(AppRoutes.shell, (route) => false),
+        retryLabel: 'Retour à l\'accueil',
+      ),
+    );
   }
 }

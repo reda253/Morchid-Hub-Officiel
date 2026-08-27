@@ -6,7 +6,7 @@ Définit la structure des tables PostgreSQL
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from geoalchemy2 import Geometry
 from .database import Base
@@ -39,7 +39,13 @@ class User(Base):
     is_email_verified = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String(255), nullable=True, index=True)
     reset_password_token = Column(String(255), nullable=True, index=True)
-    token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Deux expirations distinctes : une seule colonne partagée faisait que
+    # demander un reset de mot de passe re-datait le lien de vérification.
+    verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Incrémenté pour révoquer toutes les sessions d'un utilisateur.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     
     # Métadonnées
     is_active = Column(Boolean, default=True, nullable=False)
@@ -98,7 +104,9 @@ class Guide(Base):
     premium_until = Column(DateTime(timezone=True), nullable=True)  # Date d'expiration
     
     # Métadonnées
-    approval_status = Column(String(20), default='pending_approval')  # pending_approval, approved, rejected
+    # RG14 (UML étape 12) : statut unique `pending` — le sous-état "documents
+    # soumis" est dérivé (has_official_license), plus de `pending_review`.
+    approval_status = Column(String(20), default='pending')  # pending, approved, rejected
     rejection_reason = Column(Text, nullable=True)  # ✅ NOUVEAU : Motif de rejet
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -108,6 +116,7 @@ class Guide(Base):
     user = relationship("User", back_populates="guide_profile")
     routes = relationship("GuideRoute", back_populates="guide", cascade="all, delete-orphan")
     reviews = relationship("Review",     back_populates="guide",   cascade="all, delete-orphan")
+    subscriptions = relationship("Subscription", back_populates="guide", cascade="all, delete-orphan")
      # ------------------------------------------------------------------
     # Méthode utilitaire appelée dans reviews.py après chaque INSERT/DELETE
     # ------------------------------------------------------------------
@@ -243,11 +252,21 @@ class GuideRoute(Base):
 
     
     is_active = Column(Boolean, default=True, nullable=False)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     guide = relationship("Guide", back_populates="routes")
+    # Phase B (UML étape 10/11) : checkpoints promus en table propre + créneaux programmés.
+    # La colonne JSON `checkpoints` est conservée (dénormalisation de compat frontend) ;
+    # `checkpoint_rows` est la source canonique côté modèle relationnel.
+    checkpoint_rows = relationship(
+        "Checkpoint", back_populates="route", cascade="all, delete-orphan",
+        order_by="Checkpoint.position",
+    )
+    time_slots = relationship(
+        "TimeSlot", back_populates="route", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
     # Logique pour le prix
@@ -311,3 +330,117 @@ class SupportMessage(Base):
     
     def __repr__(self):
         return f"<SupportMessage(id={self.id}, user_id={self.user_id}, subject={self.subject}, is_resolved={self.is_resolved})>"
+
+
+# ============================================
+# TABLE CHECKPOINTS (Phase B — UML étape 10/11)
+# ============================================
+# Promotion du JSON imbriqué `guide_routes.checkpoints` en table propre
+# (relation Route 1—0..* Checkpoint). La colonne JSON reste alimentée en
+# parallèle pour ne pas casser le contrat de réponse existant.
+
+class Checkpoint(Base):
+    __tablename__ = "checkpoints"
+
+    id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    route_id = Column(
+        String, ForeignKey("guide_routes.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(120), nullable=False)
+    description = Column(Text, nullable=False)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    type = Column(String(20), nullable=False)  # Monument, Repos, Photo, Panorama
+    estimated_time = Column(Integer, nullable=False, default=0)  # minutes d'arrêt
+    image_url = Column(Text, nullable=True)
+    position = Column(Integer, nullable=False, default=0)  # ordre sur le trajet
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    route = relationship("GuideRoute", back_populates="checkpoint_rows")
+
+    def __repr__(self):
+        return f"<Checkpoint(id={self.id}, route={self.route_id}, name={self.name}, type={self.type})>"
+
+
+# ============================================
+# TABLE TIME_SLOTS (Phase B — UML étape 11/12, entité nouvelle)
+# ============================================
+# Créneaux programmés d'un trajet. RG21 : pas de chevauchement entre créneaux
+# d'un même guide (vérifié dans RouteService/TimeSlotService avant création).
+
+class TimeSlot(Base):
+    __tablename__ = "time_slots"
+
+    id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    route_id = Column(
+        String, ForeignKey("guide_routes.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    scheduled_start = Column(DateTime(timezone=True), nullable=False, index=True)
+    scheduled_end = Column(DateTime(timezone=True), nullable=False)
+    # État dérivé possible, mais persisté pour tracer l'annulation explicite.
+    status = Column(String(20), default="upcoming", nullable=False)
+    # upcoming, in_progress, completed, cancelled
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    route = relationship("GuideRoute", back_populates="time_slots")
+
+    def overlaps(self, start, end) -> bool:
+        """Vrai si [start, end] chevauche ce créneau (RG21). Les créneaux
+        annulés ne comptent pas comme conflit.
+
+        Normalise l'awareness des datetimes : la BDD (TIMESTAMPTZ) renvoie des
+        valeurs tz-aware alors que les entrées HTTP peuvent être naïves — on
+        aligne tout sur UTC pour éviter les comparaisons naïf/aware.
+        """
+        if self.status == "cancelled":
+            return False
+
+        def _aware(dt):
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
+        s_start, s_end = _aware(self.scheduled_start), _aware(self.scheduled_end)
+        c_start, c_end = _aware(start), _aware(end)
+        return s_start < c_end and c_start < s_end
+
+    def __repr__(self):
+        return (
+            f"<TimeSlot(id={self.id}, route={self.route_id}, "
+            f"{self.scheduled_start}→{self.scheduled_end}, status={self.status})>"
+        )
+
+
+# ============================================
+# TABLE SUBSCRIPTIONS (Phase B — UML `Subscription`, historique de paiement)
+# ============================================
+# Chaque activation Premium crée un enregistrement d'abonnement (montant + dates).
+# Source des analytics revenu/abonnements du tableau de bord admin.
+# NB : `Guide.is_premium`/`premium_until` restent l'état courant (lecture rapide) ;
+# cette table est l'HISTORIQUE facturable qui les alimente.
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    guide_id = Column(
+        String, ForeignKey("guides.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    tier = Column(String(20), nullable=False, default="pro")  # pro, agency
+    amount = Column(Float, nullable=False)                    # montant payé (DH)
+    currency = Column(String(3), nullable=False, default="MAD")
+    status = Column(String(20), nullable=False, default="active", index=True)  # active, expired, cancelled
+    started_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    guide = relationship("Guide", back_populates="subscriptions")
+
+    def __repr__(self):
+        return (
+            f"<Subscription(id={self.id}, guide={self.guide_id}, "
+            f"tier={self.tier}, {self.amount}{self.currency}, status={self.status})>"
+        )

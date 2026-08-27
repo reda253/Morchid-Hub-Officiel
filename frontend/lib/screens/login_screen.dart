@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/inline_error.dart';
 import '../services/api_service.dart';
+import '../routes/app_routes.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -17,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -28,18 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // ============================================
   // ✅ VALIDATION
   // ============================================
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre email';
-    }
-    // Expression régulière pour valider le format de l'email
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Email invalide';
-    }
-    return null;
-  }
-
+  // NE PAS remplacer par Validators.password : celui-ci impose lettres+chiffres,
+  // ce qui est la règle d'INSCRIPTION. L'appliquer ici bloquerait la connexion
+  // des comptes existants dont le mot de passe ne contient que des lettres.
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Veuillez entrer votre mot de passe';
@@ -62,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Afficher l'indicateur de chargement
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
@@ -89,36 +86,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
 
-        // TODO: Naviguer vers l'écran principal selon le rôle
-        // if (response.user.role == 'guide') {
-        //   Navigator.pushReplacementNamed(context, '/guide_home');
-        // } else {
-        //   Navigator.pushReplacementNamed(context, '/tourist_home');
-        // }
-        
         // Pour l'instant, juste un print
         print('✅ Connexion réussie: ${response.user.email}');
         print('🔑 Token: ${response.accessToken.substring(0, 20)}...');
         // Naviguer vers le Dashboard
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, AppRoutes.shell);
       }
     } catch (e) {
-      // Cacher l'indicateur de chargement
+      // Cacher l'indicateur de chargement et afficher l'erreur en ligne
       setState(() {
         _isLoading = false;
+        _errorMessage = e.toString();
       });
-
-      // Afficher l'erreur
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
     }
   }
 
@@ -159,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   hint: 'exemple@email.com',
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
+                  validator: Validators.email,
                 ),
                 
                 const SizedBox(height: 20),
@@ -186,21 +165,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextButton(
                     onPressed: () {
                       // TODO: Naviguer vers l'écran de récupération
-                      Navigator.pushNamed(context, '/forgot-password');
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
                     },
-                    child: const Text(
+                    child: Text(
                       'Mot de passe oublié ?',
-                      style: TextStyle(
+                      style: AppTextStyles.bodySm.copyWith(
                         color: AppColors.primary,
-                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
-                
-                const SizedBox(height: 30),
-                
+
+                const SizedBox(height: 12),
+
+                // ============================================
+                // ⚠️ ERREUR DE CONNEXION
+                // ============================================
+                InlineError(message: _errorMessage),
+
+                const SizedBox(height: 18),
+
                 // ============================================
                 // 🎯 BOUTON DE CONNEXION
                 // ============================================
@@ -228,9 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OU',
-                        style: TextStyle(
-                          color: AppColors.textLight.withOpacity(0.6),
-                          fontSize: 14,
+                        style: AppTextStyles.bodySm.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -255,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     linkText: 'S\'inscrire',
                     onTap: () {
                       // Navigation avec animation fluide
-                      Navigator.pushNamed(context, '/signup');
+                      Navigator.pushNamed(context, AppRoutes.signup);
                     },
                   ),
                 ),

@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user_models.dart';
 import '../services/storage_service.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/app_colors.dart';
+import '../widgets/error_state.dart';
+import '../widgets/inline_error.dart';
+import '../widgets/ui_kit.dart';
 
 class ReviewScreen extends StatefulWidget {
   final String guideId;
@@ -33,20 +38,12 @@ class _ReviewScreenState extends State<ReviewScreen>
   int _hoverRating = 0;
   final TextEditingController _commentController = TextEditingController();
   bool _isSubmitting = false;
+  String? _submitError;
 
   // ── Liste des avis existants ──────────────────────────────────────────────
   ReviewListResponse? _reviewsData;
   bool _isLoadingReviews = true;
-  String? _reviewsError;
-
-  // ── Design system (synchronisé avec home_screen) ──────────────────────────
-  static const Color primaryColor    = Color(0xFF2D6A4F);
-  static const Color secondaryColor  = Color(0xFF1B4332);
-  static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color textDark        = Color(0xFF2B2D42);
-  static const Color textLight       = Color(0xFF8D99AE);
-  static const Color starColor       = Color(0xFFFFC107);
-  static const Color errorColor      = Color(0xFFE63946);
+  ApiError? _reviewsError;
 
   // ── Labels des notes ──────────────────────────────────────────────────────
   static const List<String> _ratingLabels = [
@@ -81,8 +78,15 @@ class _ReviewScreenState extends State<ReviewScreen>
     try {
       final data = await ApiService.fetchGuideReviews(widget.guideId);
       if (mounted) setState(() => _reviewsData = data);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _reviewsError = e);
     } catch (e) {
-      if (mounted) setState(() => _reviewsError = e.toString());
+      if (mounted) {
+        setState(() => _reviewsError = ApiError(
+              errorCode: 'FETCH_REVIEWS_ERROR',
+              message: e.toString(),
+            ));
+      }
     } finally {
       if (mounted) setState(() => _isLoadingReviews = false);
     }
@@ -91,11 +95,14 @@ class _ReviewScreenState extends State<ReviewScreen>
   // ── Soumettre un avis ─────────────────────────────────────────────────────
   Future<void> _submitReview() async {
     if (_rating == 0) {
-      _showSnackBar('Veuillez sélectionner une note', isError: true);
+      setState(() => _submitError = 'Veuillez sélectionner une note');
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
 
     try {
       final request = ReviewCreateRequest(
@@ -132,9 +139,9 @@ class _ReviewScreenState extends State<ReviewScreen>
         Navigator.pop(context, true);
       }
     } on ApiError catch (e) {
-      if (mounted) _showSnackBar(e.message, isError: true);
+      if (mounted) setState(() => _submitError = e.message);
     } catch (e) {
-      if (mounted) _showSnackBar('Erreur inattendue : $e', isError: true);
+      if (mounted) setState(() => _submitError = 'Erreur inattendue : $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -144,7 +151,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? errorColor : primaryColor,
+        backgroundColor: isError ? AppColors.error : AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
@@ -159,7 +166,7 @@ class _ReviewScreenState extends State<ReviewScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
@@ -169,16 +176,16 @@ class _ReviewScreenState extends State<ReviewScreen>
               background: _buildHeader(),
             ),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_ios, color: AppColors.onImage),
               onPressed: () => Navigator.pop(context),
             ),
             bottom: TabBar(
               controller: _tabController,
-              indicatorColor: Colors.white,
+              indicatorColor: AppColors.onImage,
               indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white60,
-              labelStyle: const TextStyle(
+              labelColor: AppColors.onImage,
+              unselectedLabelColor: AppColors.onImage.withValues(alpha: 0.60),
+              labelStyle: AppTextStyles.titleMd.copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
               ),
@@ -196,13 +203,15 @@ class _ReviewScreenState extends State<ReviewScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.white24,
+                            color: AppColors.onImage.withValues(alpha: 0.24),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             '${_reviewsData!.totalReviews}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.white),
+                            style: AppTextStyles.bodySm.copyWith(
+                              fontSize: 12,
+                              color: AppColors.onImage,
+                            ),
                           ),
                         ),
                       ],
@@ -229,7 +238,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [primaryColor, secondaryColor],
+          colors: [AppColors.primary, AppColors.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -250,8 +259,8 @@ class _ReviewScreenState extends State<ReviewScreen>
                   children: [
                     Text(
                       widget.guideName,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: AppTextStyles.headlineMd.copyWith(
+                        color: AppColors.onImage,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -263,14 +272,17 @@ class _ReviewScreenState extends State<ReviewScreen>
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.route,
-                              color: Colors.white70, size: 14),
+                          Icon(Icons.route,
+                              color: AppColors.onImage.withValues(alpha: 0.70),
+                              size: 14),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               widget.routeLabel!,
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 13),
+                              style: AppTextStyles.bodySm.copyWith(
+                                color: AppColors.onImage.withValues(alpha: 0.70),
+                                fontSize: 13,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -306,56 +318,51 @@ class _ReviewScreenState extends State<ReviewScreen>
           : '${ApiService.baseUrl}/${widget.guidePhotoUrl}';
       return CircleAvatar(
         radius: 32,
-        backgroundColor: Colors.white24,
+        backgroundColor: AppColors.onImage.withValues(alpha: 0.24),
         child: ClipOval(
           child: Image.network(
             url,
             width: 64,
             height: 64,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _defaultAvatar(32),
+            errorBuilder: (_, __, ___) =>
+                DefaultAvatar(fullName: widget.guideName, radius: 32),
           ),
         ),
       );
     }
-    return _defaultAvatar(32);
-  }
-
-  Widget _defaultAvatar(double radius) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: Colors.white24,
-      child: Text(
-        widget.guideName.isNotEmpty ? widget.guideName[0].toUpperCase() : '?',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: radius * 0.8,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
+    return DefaultAvatar(fullName: widget.guideName, radius: 32);
   }
 
   Widget _buildCompactRating(double avg, int count) {
     if (count == 0) {
-      return const Text(
+      return Text(
         'Aucun avis pour l\'instant',
-        style: TextStyle(color: Colors.white60, fontSize: 12),
+        style: AppTextStyles.bodySm.copyWith(
+          color: AppColors.onImage.withValues(alpha: 0.60),
+          fontSize: 12,
+        ),
       );
     }
     return Row(
       children: [
-        const Icon(Icons.star_rounded, color: starColor, size: 16),
+        const Icon(Icons.star_rounded, color: AppColors.star, size: 16),
         const SizedBox(width: 4),
         Text(
           avg.toStringAsFixed(1),
-          style: const TextStyle(
-              color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          style: AppTextStyles.bodySm.copyWith(
+            color: AppColors.onImage,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(width: 4),
         Text(
           '($count avis)',
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
+          style: AppTextStyles.bodySm.copyWith(
+            color: AppColors.onImage.withValues(alpha: 0.70),
+            fontSize: 12,
+          ),
         ),
       ],
     );
@@ -377,21 +384,19 @@ class _ReviewScreenState extends State<ReviewScreen>
                 ? 'Comment s\'est passé ce trajet avec ${widget.guideName} ?'
                 : 'Comment s\'est passée votre expérience avec ${widget.guideName} ?',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: AppTextStyles.titleMd.copyWith(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: textDark,
             ),
           ),
           const SizedBox(height: 32),
 
           // ── Étoiles interactives ─────────────────────────────────────────
-          const Text(
+          Text(
             'Votre note',
-            style: TextStyle(
+            style: AppTextStyles.bodySm.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: textLight,
               letterSpacing: 0.5,
             ),
           ),
@@ -405,10 +410,10 @@ class _ReviewScreenState extends State<ReviewScreen>
             child: Text(
               _rating > 0 ? _ratingLabels[_rating] : 'Appuyez sur une étoile',
               key: ValueKey(_rating),
-              style: TextStyle(
+              style: AppTextStyles.bodySm.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: _rating > 0 ? primaryColor : textLight,
+                color: _rating > 0 ? AppColors.primary : AppColors.textLight,
               ),
             ),
           ),
@@ -419,21 +424,21 @@ class _ReviewScreenState extends State<ReviewScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
                 border:
-                    Border.all(color: primaryColor.withOpacity(0.2)),
+                    Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.route, color: primaryColor, size: 16),
+                  const Icon(Icons.route, color: AppColors.primary, size: 16),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       'Trajet : ${widget.routeLabel}',
-                      style: const TextStyle(
-                        color: primaryColor,
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -446,12 +451,11 @@ class _ReviewScreenState extends State<ReviewScreen>
           ],
 
           // ── Zone de commentaire ──────────────────────────────────────────
-          const Text(
+          Text(
             'Votre commentaire',
-            style: TextStyle(
+            style: AppTextStyles.bodySm.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: textLight,
               letterSpacing: 0.5,
             ),
           ),
@@ -464,26 +468,27 @@ class _ReviewScreenState extends State<ReviewScreen>
             decoration: InputDecoration(
               hintText:
                   'Partagez votre avis (facultatif)…\n\nEx: Guide très accueillant, trajet bien organisé !',
-              hintStyle:
-                  TextStyle(color: textLight.withOpacity(0.7), fontSize: 14),
+              hintStyle: AppTextStyles.bodySm.copyWith(
+                color: AppColors.textLight.withValues(alpha: 0.7),
+                fontSize: 14,
+              ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: AppColors.surface,
               contentPadding: const EdgeInsets.all(16),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: const BorderSide(color: AppColors.cardBorder),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: const BorderSide(color: AppColors.cardBorder),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide:
-                    const BorderSide(color: primaryColor, width: 1.5),
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
-              counterStyle:
-                  const TextStyle(color: textLight, fontSize: 12),
+              counterStyle: AppTextStyles.bodySm.copyWith(fontSize: 12),
             ),
           ),
           const SizedBox(height: 32),
@@ -495,8 +500,8 @@ class _ReviewScreenState extends State<ReviewScreen>
             child: ElevatedButton(
               onPressed: (_isSubmitting || _rating == 0) ? null : _submitReview,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                disabledBackgroundColor: Colors.grey.shade300,
+                backgroundColor: AppColors.primary,
+                disabledBackgroundColor: AppColors.outline,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -506,33 +511,38 @@ class _ReviewScreenState extends State<ReviewScreen>
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child:
-                          CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                          color: AppColors.onPrimary, strokeWidth: 2.5),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                        SizedBox(width: 10),
+                      children: [
+                        const Icon(Icons.send_rounded,
+                            color: AppColors.onPrimary, size: 20),
+                        const SizedBox(width: 10),
                         Text(
                           'Envoyer l\'avis',
-                          style: TextStyle(
+                          style: AppTextStyles.titleMd.copyWith(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.onPrimary,
                           ),
                         ),
                       ],
                     ),
             ),
           ),
+          if (_submitError != null) ...[
+            const SizedBox(height: 8),
+            InlineError(message: _submitError),
+          ],
           const SizedBox(height: 16),
 
           // Note légale
           Center(
             child: Text(
               'Vous ne pourrez laisser qu\'un seul avis par guide.',
-              style: TextStyle(color: textLight, fontSize: 12),
+              style: AppTextStyles.bodySm.copyWith(fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
@@ -564,7 +574,7 @@ class _ReviewScreenState extends State<ReviewScreen>
               child: Icon(
                 filled ? Icons.star_rounded : Icons.star_outline_rounded,
                 key: ValueKey('$star-$filled'),
-                color: filled ? starColor : Colors.grey.shade300,
+                color: filled ? AppColors.star : AppColors.outline,
                 size: 44,
               ),
             ),
@@ -581,30 +591,12 @@ class _ReviewScreenState extends State<ReviewScreen>
   Widget _buildReviewsTab() {
     if (_isLoadingReviews) {
       return const Center(
-        child: CircularProgressIndicator(color: primaryColor),
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
     if (_reviewsError != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.wifi_off, size: 60, color: textLight),
-            const SizedBox(height: 16),
-            Text('Impossible de charger les avis',
-                style: TextStyle(color: textLight, fontSize: 15)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadReviews,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor),
-            ),
-          ],
-        ),
-      );
+      return ErrorState.fromApiError(_reviewsError!, onRetry: _loadReviews);
     }
 
     if (_reviewsData == null || _reviewsData!.reviews.isEmpty) {
@@ -612,7 +604,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     }
 
     return RefreshIndicator(
-      color: primaryColor,
+      color: AppColors.primary,
       onRefresh: _loadReviews,
       child: CustomScrollView(
         slivers: [
@@ -641,13 +633,13 @@ class _ReviewScreenState extends State<ReviewScreen>
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: AppColors.shadow,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -658,10 +650,8 @@ class _ReviewScreenState extends State<ReviewScreen>
             children: [
               Text(
                 data.averageRating.toStringAsFixed(1),
-                style: const TextStyle(
+                style: AppTextStyles.displayLg.copyWith(
                   fontSize: 52,
-                  fontWeight: FontWeight.bold,
-                  color: textDark,
                   height: 1,
                 ),
               ),
@@ -670,7 +660,7 @@ class _ReviewScreenState extends State<ReviewScreen>
               const SizedBox(height: 4),
               Text(
                 '${data.totalReviews} avis',
-                style: const TextStyle(color: textLight, fontSize: 13),
+                style: AppTextStyles.bodySm.copyWith(fontSize: 13),
               ),
             ],
           ),
@@ -700,18 +690,18 @@ class _ReviewScreenState extends State<ReviewScreen>
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Text('$star', style: const TextStyle(fontSize: 12, color: textLight)),
+          Text('$star', style: AppTextStyles.bodySm.copyWith(fontSize: 12)),
           const SizedBox(width: 4),
-          const Icon(Icons.star_rounded, size: 12, color: starColor),
+          const Icon(Icons.star_rounded, size: 12, color: AppColors.star),
           const SizedBox(width: 6),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: ratio,
-                backgroundColor: Colors.grey.shade100,
+                backgroundColor: AppColors.surfaceAlt,
                 valueColor:
-                    const AlwaysStoppedAnimation<Color>(primaryColor),
+                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
                 minHeight: 6,
               ),
             ),
@@ -721,8 +711,7 @@ class _ReviewScreenState extends State<ReviewScreen>
             width: 20,
             child: Text(
               '$count',
-              style:
-                  const TextStyle(fontSize: 11, color: textLight),
+              style: AppTextStyles.bodySm.copyWith(fontSize: 11),
               textAlign: TextAlign.right,
             ),
           ),
@@ -737,13 +726,13 @@ class _ReviewScreenState extends State<ReviewScreen>
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.shadow,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -755,13 +744,13 @@ class _ReviewScreenState extends State<ReviewScreen>
               // Avatar du touriste
               CircleAvatar(
                 radius: 20,
-                backgroundColor: primaryColor.withOpacity(0.15),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 child: Text(
                   review.touristName.isNotEmpty
                       ? review.touristName[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                    color: primaryColor,
+                  style: AppTextStyles.titleMd.copyWith(
+                    color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -775,17 +764,15 @@ class _ReviewScreenState extends State<ReviewScreen>
                   children: [
                     Text(
                       review.touristName,
-                      style: const TextStyle(
+                      style: AppTextStyles.titleMd.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
-                        color: textDark,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       review.timeAgo,
-                      style: const TextStyle(
-                          color: textLight, fontSize: 12),
+                      style: AppTextStyles.bodySm.copyWith(fontSize: 12),
                     ),
                   ],
                 ),
@@ -796,21 +783,23 @@ class _ReviewScreenState extends State<ReviewScreen>
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: primaryColor.withOpacity(0.2)),
+                        color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.route,
-                          size: 10, color: primaryColor),
-                      SizedBox(width: 3),
+                    children: [
+                      const Icon(Icons.route,
+                          size: 10, color: AppColors.primary),
+                      const SizedBox(width: 3),
                       Text(
                         'Trajet',
-                        style: TextStyle(
-                            fontSize: 10, color: primaryColor),
+                        style: AppTextStyles.bodySm.copyWith(
+                          fontSize: 10,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -826,9 +815,8 @@ class _ReviewScreenState extends State<ReviewScreen>
             const SizedBox(height: 10),
             Text(
               review.comment!,
-              style: const TextStyle(
+              style: AppTextStyles.bodyLg.copyWith(
                 fontSize: 14,
-                color: textDark,
                 height: 1.5,
               ),
             ),
@@ -840,55 +828,12 @@ class _ReviewScreenState extends State<ReviewScreen>
 
   // ── État vide ─────────────────────────────────────────────────────────────
   Widget _buildEmptyReviews() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.rate_review_outlined,
-                size: 64,
-                color: primaryColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Aucun avis pour l\'instant',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Soyez le premier à partager votre expérience\navec ce guide !',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: textLight),
-            ),
-            const SizedBox(height: 28),
-            ElevatedButton.icon(
-              onPressed: () => _tabController.animateTo(0),
-              icon: const Icon(Icons.star_rounded),
-              label: const Text('Laisser le premier avis'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ErrorState(
+      icon: Icons.rate_review_outlined,
+      title: 'Aucun avis pour l\'instant',
+      message: 'Soyez le premier à partager votre expérience\navec ce guide !',
+      onRetry: () => _tabController.animateTo(0),
+      retryLabel: 'Laisser le premier avis',
     );
   }
 
@@ -898,12 +843,13 @@ class _ReviewScreenState extends State<ReviewScreen>
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
         if (rating >= i + 1) {
-          return Icon(Icons.star_rounded, color: starColor, size: size);
+          return Icon(Icons.star_rounded, color: AppColors.star, size: size);
         } else if (rating > i) {
-          return Icon(Icons.star_half_rounded, color: starColor, size: size);
+          return Icon(Icons.star_half_rounded,
+              color: AppColors.star, size: size);
         }
         return Icon(Icons.star_outline_rounded,
-            color: Colors.grey.shade300, size: size);
+            color: AppColors.outline, size: size);
       }),
     );
   }

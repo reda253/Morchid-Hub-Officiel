@@ -2,3 +2,9 @@
 __pycache__/
 *.pyc
 venv
+
+# Tests (Plan 03)
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml

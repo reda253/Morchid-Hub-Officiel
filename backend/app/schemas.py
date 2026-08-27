@@ -74,9 +74,19 @@ class UserRegistration(BaseModel):
     """Schema pour l'inscription d'un utilisateur"""
     personal_info: PersonalInfo
     role: str = Field(..., pattern='^(tourist|guide)$')
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=10)
     guide_details: Optional[GuideDetails] = None
-    
+
+    @validator('password')
+    def validate_password_rules(cls, v):
+        """Applique la politique unique définie dans auth.validate_password_strength."""
+        from .auth import validate_password_strength
+
+        valid, message = validate_password_strength(v)
+        if not valid:
+            raise ValueError(message)
+        return v
+
     @validator('guide_details')
     def validate_guide_details(cls, v, values):
         """Vérifie que guide_details est fourni si role = 'guide'"""
@@ -187,15 +197,18 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     """Réinitialisation du mot de passe avec token"""
     token: str
-    new_password: str = Field(..., min_length=6)
-    
+    new_password: str = Field(..., min_length=10)
+
     @validator('new_password')
-    def validate_password_strength(cls, v):
-        """Vérifie la force du mot de passe"""
-        if not any(c.isalpha() for c in v):
-            raise ValueError('Le mot de passe doit contenir au moins une lettre')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+    def validate_password_rules(cls, v):
+        """Même politique qu'à l'inscription : une réinitialisation ne doit pas
+        permettre de poser un mot de passe plus faible que celui exigé au
+        départ. La règle vit dans auth.validate_password_strength, pas ici."""
+        from .auth import validate_password_strength
+
+        valid, message = validate_password_strength(v)
+        if not valid:
+            raise ValueError(message)
         return v
     
 class VerifyEmailRequest(BaseModel):
@@ -407,20 +420,43 @@ class SupportMessageResponse(BaseModel):
 # ✅ SCHEMAS DE RECHERCHE
 # ============================================
 
-class SearchGuideResponse(BaseModel):
+class PublicGuideCard(BaseModel):
     """
-    Réponse de recherche de guide (endpoint /search/guides).
-    Retourne un objet 'user' et un objet 'guide' imbriqués.
-    Le champ 'phone' est extrait de la table users via la jointure
-    et exposé à plat pour que le frontend puisse l'utiliser directement
-    (ex: bouton WhatsApp) sans avoir à le chercher dans user.phone.
+    Projection publique d'un guide — endpoints anonymes (/search/guides, /guides).
+
+    Cette classe est volontairement *plate* et énumère ses champs un par un.
+    Elle ne compose PAS UserResponse ni GuideResponse : ces deux schémas sont
+    des reflets de leurs lignes SQL et exposeraient email, téléphone, is_admin
+    et les URLs des documents d'identité (licence, CINE) à un appelant anonyme.
+
+    Toute nouvelle donnée personnelle ajoutée aux modèles n'apparaîtra ici que
+    si quelqu'un l'ajoute explicitement — c'est l'intérêt d'énumérer.
     """
-    user: UserResponse
-    guide: GuideResponse
-    phone: Optional[str] = None  # ✅ Copié depuis user.phone — pas de nouvelle colonne DB
+    user_id: str
+    guide_id: str
+    full_name: str
+    profile_photo_url: Optional[str] = None
+
+    languages: List[str]
+    specialties: List[str]
+    cities_covered: List[str]
+    years_of_experience: int
+    bio: str
+    is_verified: bool
+
+    eco_score: int
+    average_rating: float = 0.0
+    total_reviews: int = 0
 
     class Config:
         from_attributes = True
+
+    @validator('profile_photo_url', pre=True)
+    def normalize_photo(cls, v):
+        """Remplace les backslashes Windows par des slashes URL."""
+        if v and isinstance(v, str):
+            return v.replace('\\', '/')
+        return v
 
 
 class ActiveRouteInfo(BaseModel):
@@ -557,7 +593,6 @@ class ReviewResponse(BaseModel):
     """
     id:           str
     guide_id:     str
-    tourist_id:   str
     tourist_name: str                  # Enrichi depuis User.full_name
     route_id:     Optional[str] = None
     rating:       int                  # 1–5
@@ -570,7 +605,6 @@ class ReviewResponse(BaseModel):
             "example": {
                 "id":           "rev-456",
                 "guide_id":     "abc-123",
-                "tourist_id":   "usr-789",
                 "tourist_name": "Youssef El Amrani",
                 "route_id":     None,
                 "rating":       4,
@@ -606,3 +640,51 @@ class SuccessResponse(BaseModel):
     status: str = "success"
     message: str
     data: Optional[dict] = None
+
+
+# ============================================
+# ✅ SCHEMAS CRÉNEAUX (TIME SLOTS) — Phase B / UML
+# ============================================
+
+class TimeSlotCreate(BaseModel):
+    """Corps de POST /api/v1/guides/routes/{route_id}/slots.
+
+    Programme un créneau pour un trajet. RG21 : le backend refuse tout
+    chevauchement avec un créneau existant du même guide.
+    """
+    scheduled_start: datetime = Field(..., description="Début du créneau (ISO 8601)")
+    scheduled_end: datetime = Field(..., description="Fin du créneau (ISO 8601)")
+
+    @validator("scheduled_end")
+    def end_after_start(cls, v, values):
+        start = values.get("scheduled_start")
+        if start is not None and v <= start:
+            raise ValueError("scheduled_end doit être postérieur à scheduled_start")
+        return v
+
+
+class TimeSlotResponse(BaseModel):
+    """Réponse pour un créneau programmé."""
+    id: str
+    route_id: str
+    scheduled_start: datetime
+    scheduled_end: datetime
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PublicRouteResponse(BaseModel):
+    """
+    Trajet actif public (GET /api/v1/routes/all).
+
+    Remplace un `response_model=List[dict]`, qui n'appliquait aucun filtrage
+    Pydantic : le dictionnaire construit à la main était correct, mais rien
+    n'empêchait un champ ajouté plus tard de partir en clair.
+    """
+    route: dict
+    guide_name: str
+    guide_photo_url: Optional[str] = None
+    guide_rating: float = 0.0
+    guide_total_reviews: int = 0
