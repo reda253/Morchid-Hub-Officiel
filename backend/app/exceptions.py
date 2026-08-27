@@ -17,8 +17,12 @@ Ce format est identique à celui produit par l'ancien `main.py`, afin de
 préserver le contrat d'API vis-à-vis du frontend Flutter.
 """
 
+import logging
+
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -117,10 +121,16 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Filet de sécurité pour toute erreur non gérée."""
+    """Filet de sécurité pour toute erreur non gérée.
+
+    `details` reste vide côté client : y placer `str(exc)` renvoyait le texte
+    d'exceptions internes — chaînes de connexion, chemins, fragments SQL — à
+    n'importe quel appelant capable de provoquer une 500.
+    """
+    logger.exception("Erreur non gérée sur %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=_error_payload("INTERNAL_SERVER_ERROR", "Une erreur interne est survenue", str(exc)),
+        content=_error_payload("INTERNAL_SERVER_ERROR", "Une erreur interne est survenue"),
     )
 
 

@@ -170,3 +170,22 @@ def test_public_reviews_do_not_expose_tourist_id(client, db_session):
     assert body["reviews"], "l'avis doit être listé"
     assert "tourist_id" not in body["reviews"][0]
     assert body["reviews"][0]["tourist_name"], "le nom reste affiché"
+
+
+def test_health_error_does_not_leak_connection_details(client, monkeypatch):
+    """Une panne DB ne doit pas renvoyer l'hôte, le port ni l'utilisateur."""
+    from sqlalchemy.orm import Session
+
+    def _boom(self, *args, **kwargs):
+        raise RuntimeError(
+            'connection to server at "db.internal" (10.0.0.5), port 5432 '
+            'failed: role "morchid_admin" does not exist'
+        )
+
+    monkeypatch.setattr(Session, "execute", _boom)
+
+    resp = client.get("/health")
+    assert resp.status_code == 503
+    body = resp.text
+    for secret in ("db.internal", "10.0.0.5", "5432", "morchid_admin"):
+        assert secret not in body, f"« {secret} » fuit dans la réponse de health"
