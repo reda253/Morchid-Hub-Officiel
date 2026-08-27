@@ -19,18 +19,45 @@ from .rate_limit import register_rate_limiting
 from .uploads import PROFILE_DIR, ensure_upload_dirs
 
 
+# Valeurs d'exemple qui ne doivent jamais servir en dehors du poste de dev.
+_PLACEHOLDER_SECRETS = {
+    "votre_cle_secrete_super_longue_et_aleatoire_ici",
+    "changeme",
+    "secret",
+}
+_MIN_SECRET_LENGTH = 32
+
+
+def _assert_secret_key_is_safe(secret: str) -> None:
+    """Refuse de démarrer avec une clé d'exemple ou trop courte.
+
+    Échec à l'ouverture (fail closed) : une clé faible laisse forger des JWT
+    valides pour n'importe quel compte, y compris administrateur.
+    """
+    if secret.strip().lower() in _PLACEHOLDER_SECRETS or len(secret) < _MIN_SECRET_LENGTH:
+        raise RuntimeError(
+            "SECRET_KEY invalide : utilisez une valeur aléatoire d'au moins "
+            f"{_MIN_SECRET_LENGTH} caractères (voir backend/.env)."
+        )
+
+
 def create_app() -> FastAPI:
+    _assert_secret_key_is_safe(settings.SECRET_KEY)
+
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
         description=settings.DESCRIPTION,
     )
 
-    # CORS — ouvert en développement.
-    # TODO (déploiement) : restreindre via settings.cors_origins_list (voir Plan 05).
+    # CORS restreint aux origines déclarées dans CORS_ORIGINS.
+    #
+    # allow_origins=["*"] avec allow_credentials=True n'était pas seulement
+    # permissif : les navigateurs refusent cette combinaison, donc les appels
+    # cross-origin authentifiés échouaient de toute façon.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
