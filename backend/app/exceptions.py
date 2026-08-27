@@ -20,6 +20,7 @@ préserver le contrat d'API vis-à-vis du frontend Flutter.
 import logging
 
 from fastapi import HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,76 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     )
 
 
+# Noms lisibles pour les champs les plus souvent rejetés.
+_FIELD_LABELS = {
+    "password": "Le mot de passe",
+    "new_password": "Le nouveau mot de passe",
+    "email": "L'adresse email",
+    "phone": "Le numéro de téléphone",
+    "full_name": "Le nom complet",
+    "date_of_birth": "La date de naissance",
+    "role": "Le rôle",
+    "bio": "La biographie",
+    "token": "Le token",
+}
+
+
+def _describe_validation_error(err: dict) -> str:
+    """Formule en français une erreur de validation Pydantic."""
+    loc = [str(p) for p in err.get("loc", ()) if p not in ("body", "query", "path")]
+    field = loc[-1] if loc else ""
+    label = _FIELD_LABELS.get(field, f"Le champ « {field} »" if field else "La requête")
+    err_type = err.get("type", "")
+    ctx = err.get("ctx") or {}
+
+    if err_type == "value_error":
+        # Message levé par nos propres @validator : déjà rédigé en français.
+        # Pydantic v2 le préfixe par « Value error, ».
+        msg = err.get("msg", "")
+        return msg.split("Value error, ", 1)[-1] if msg else f"{label} est invalide"
+    if err_type == "string_too_short":
+        return f"{label} doit contenir au moins {ctx.get('min_length', '?')} caractères"
+    if err_type == "string_too_long":
+        return f"{label} ne doit pas dépasser {ctx.get('max_length', '?')} caractères"
+    if err_type == "missing":
+        return f"{label} est obligatoire"
+    if err_type in ("string_pattern_mismatch", "value_error.str.regex"):
+        return f"{label} n'est pas au bon format"
+    return f"{label} est invalide"
+
+
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Traduit les erreurs de validation Pydantic dans l'enveloppe du projet.
+
+    Sans ce handler, FastAPI répond nativement `{"detail": [...]}` en anglais —
+    une forme que le client Flutter ne sait pas lire, si bien qu'un mot de passe
+    trop court s'affichait « une erreur inattendue est survenue (422) » au lieu
+    de dire quelle règle n'est pas respectée.
+    """
+    described = [_describe_validation_error(e) for e in (exc.errors() or [])]
+    # Dédoublonnage en gardant l'ordre : deux règles sur un même champ peuvent
+    # produire la même phrase.
+    seen, messages = set(), []
+    for m in described:
+        if m not in seen:
+            seen.add(m)
+            messages.append(m)
+
+    # Toutes les erreurs sont annoncées, pas seulement la première : sur un
+    # formulaire d'inscription, ne montrer que l'erreur initiale désigne un
+    # champ arbitraire pendant que celui qui bloque reste invisible.
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=_error_payload(
+            "VALIDATION_ERROR",
+            "\n".join(messages) if messages else "Requête invalide",
+            messages or None,
+        ),
+    )
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Filet de sécurité pour toute erreur non gérée.
 
@@ -138,4 +209,5 @@ def register_exception_handlers(app) -> None:
     """Enregistre les trois handlers sur l'application FastAPI."""
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

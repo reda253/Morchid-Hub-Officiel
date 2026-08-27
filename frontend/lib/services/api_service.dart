@@ -122,7 +122,10 @@ class ApiService {
         // Succès - Inscription réussie
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         return RegistrationResponse.fromJson(responseData);
-      } else if (response.statusCode == 400) {
+      } else if (response.statusCode == 400 || response.statusCode == 422) {
+        // 422 = validation Pydantic. Le backend renvoie la même enveloppe que
+        // pour un 400, donc le message précis (règle de mot de passe, format
+        // du téléphone) remonte tel quel au lieu d'« erreur inattendue ».
         // Erreur de validation (email existe déjà, etc.)
         final Map<String, dynamic> errorData = jsonDecode(response.body);
         throw ApiError.fromJson(errorData);
@@ -609,7 +612,10 @@ class ApiService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         return SuccessResponse.fromJson(responseData);
-      } else if (response.statusCode == 400) {
+      } else if (response.statusCode == 400 || response.statusCode == 422) {
+        // 422 = validation Pydantic. Le backend renvoie la même enveloppe que
+        // pour un 400, donc le message précis (règle de mot de passe, format
+        // du téléphone) remonte tel quel au lieu d'« erreur inattendue ».
         final Map<String, dynamic> errorData = jsonDecode(response.body);
         throw ApiError.fromJson(errorData);
       } else if (response.statusCode == 401) {
