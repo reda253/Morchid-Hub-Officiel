@@ -50,7 +50,7 @@ class AuthService:
             is_admin=False,
             is_email_verified=False,
             verification_token=verification_token,
-            token_expires_at=get_token_expiry(hours=24),
+            verification_token_expires_at=get_token_expiry(hours=24),
         )
         self.users.add(new_user)
         self.db.flush()  # obtenir l'id sans committer
@@ -116,33 +116,37 @@ class AuthService:
         return user, access_token
 
     # ── Vérification d'email ──────────────────────────────────────────────
-    def verify_email(self, token: str) -> User:
-        user = self.users.get_by_verification_token(token)
-        if not user:
-            raise BadRequestError(
-                "INVALID_TOKEN", "Token de vérification invalide ou déjà utilisé"
-            )
-        if is_token_expired(user.token_expires_at):
-            raise BadRequestError(
-                "TOKEN_EXPIRED",
-                "Le token de vérification a expiré. Demandez un nouveau lien.",
-            )
-        user.is_email_verified = True
-        user.verification_token = None
-        user.token_expires_at = None
-        self.db.commit()
-        return user
+    def _consume_verification_token(self, token: str) -> Optional[User]:
+        """Valide un token de vérification et marque l'email comme vérifié.
 
-    def verify_email_by_link(self, token: str) -> Optional[User]:
-        """Variante lien navigateur : retourne None si le token est invalide (pas d'exception)."""
+        Retourne None si le token est inconnu OU expiré. Les deux entrées
+        publiques (POST /auth/verify-email et le lien GET /verify-email)
+        passent par ici : c'est précisément parce qu'elles avaient chacune
+        leur copie de la règle que le lien navigateur n'expirait jamais.
+        """
         user = self.users.get_by_verification_token(token)
         if not user:
             return None
+        if is_token_expired(user.verification_token_expires_at):
+            return None
         user.is_email_verified = True
         user.verification_token = None
-        user.token_expires_at = None
+        user.verification_token_expires_at = None
         self.db.commit()
         return user
+
+    def verify_email(self, token: str) -> User:
+        user = self._consume_verification_token(token)
+        if not user:
+            raise BadRequestError(
+                "INVALID_TOKEN",
+                "Token de vérification invalide ou expiré. Demandez un nouveau lien.",
+            )
+        return user
+
+    def verify_email_by_link(self, token: str) -> Optional[User]:
+        """Variante lien navigateur : retourne None si invalide ou expiré."""
+        return self._consume_verification_token(token)
 
     def resend_verification(self, email: str) -> bool:
         """Retourne True si un nouveau lien a été envoyé, False si le compte est inconnu."""
@@ -153,7 +157,7 @@ class AuthService:
             raise BadRequestError("ALREADY_VERIFIED", "Votre email est déjà vérifié")
         new_token = generate_verification_token()
         user.verification_token = new_token
-        user.token_expires_at = get_token_expiry(hours=24)
+        user.verification_token_expires_at = get_token_expiry(hours=24)
         self.db.commit()
         self.notifier.send_verification_email(
             email=user.email, full_name=user.full_name, token=new_token
@@ -168,7 +172,7 @@ class AuthService:
             return False  # ne pas révéler l'existence du compte
         reset_token = generate_reset_password_token()
         user.reset_password_token = reset_token
-        user.token_expires_at = get_token_expiry(hours=24)
+        user.reset_token_expires_at = get_token_expiry(hours=24)
         self.db.commit()
         self.notifier.send_password_reset_email(
             email=user.email, full_name=user.full_name, token=reset_token
@@ -185,14 +189,14 @@ class AuthService:
             raise BadRequestError(
                 "INVALID_TOKEN", "Token de réinitialisation invalide ou déjà utilisé"
             )
-        if is_token_expired(user.token_expires_at):
+        if is_token_expired(user.reset_token_expires_at):
             raise BadRequestError(
                 "TOKEN_EXPIRED",
                 "Le token a expiré. Demandez un nouveau lien de réinitialisation.",
             )
         user.password_hash = hash_password(new_password)
         user.reset_password_token = None
-        user.token_expires_at = None
+        user.reset_token_expires_at = None
         self.db.commit()
         self.notifier.send_password_changed_confirmation(
             email=user.email, full_name=user.full_name

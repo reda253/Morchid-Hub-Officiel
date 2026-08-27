@@ -4,7 +4,7 @@ Gère la génération de tokens et l'envoi d'emails
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 
@@ -35,14 +35,18 @@ def generate_reset_password_token() -> str:
 def get_token_expiry(hours: int = 24) -> datetime:
     """
     Calcule la date d'expiration d'un token
-    
+
+    Le datetime est *aware* (UTC) : les colonnes d'expiration sont des
+    TIMESTAMPTZ. Écrire un datetime naïf laissait PostgreSQL l'interpréter
+    dans le fuseau du serveur, décalant l'instant réel de l'offset UTC.
+
     Args:
         hours: Nombre d'heures avant expiration (défaut: 24h)
-        
+
     Returns:
-        Datetime d'expiration
+        Datetime d'expiration, en UTC explicite
     """
-    return datetime.utcnow() + timedelta(hours=hours)
+    return datetime.now(timezone.utc) + timedelta(hours=hours)
 
 
 def is_token_expired(expires_at: Optional[datetime]) -> bool:
@@ -57,7 +61,13 @@ def is_token_expired(expires_at: Optional[datetime]) -> bool:
     """
     if expires_at is None:
         return True
-    return datetime.utcnow() > expires_at
+    # Une valeur relue depuis une colonne TIMESTAMPTZ revient *aware*, alors
+    # qu'une valeur encore en session peut être naïve (lignes écrites avant ce
+    # correctif). Comparer les deux levait TypeError, donc une 500 au moment
+    # précis où le token devait être refusé. On normalise en UTC.
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) > expires_at
 
 
 # ============================================

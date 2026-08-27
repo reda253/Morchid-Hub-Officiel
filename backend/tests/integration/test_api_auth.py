@@ -74,3 +74,20 @@ def test_me_with_token_returns_profile(client, db_session):
     body = resp.json()
     assert body["user"]["email"] == "me@example.com"
     assert body["stats"] is not None
+
+
+def test_verification_link_rejects_expired_token(client, db_session):
+    """Le lien navigateur doit expirer comme l'endpoint POST."""
+    from datetime import datetime, timedelta, timezone
+
+    user = make_user(db_session, is_email_verified=False)
+    user.verification_token = "token-expire-plan-test"
+    user.verification_token_expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    db_session.flush()
+
+    resp = client.get("/api/v1/verify-email", params={"token": "token-expire-plan-test"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "error"
+
+    db_session.refresh(user)
+    assert user.is_email_verified is False, "un token expiré ne doit pas vérifier le compte"

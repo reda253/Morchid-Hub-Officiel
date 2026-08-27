@@ -168,18 +168,20 @@ def test_verify_email_invalid_token_raises():
 def test_verify_email_expired_token_raises():
     svc = _service()
     svc.users.get_by_verification_token.return_value = SimpleNamespace(
-        token_expires_at=datetime.utcnow() - timedelta(hours=1),
+        verification_token_expires_at=datetime.utcnow() - timedelta(hours=1),
         is_email_verified=False, verification_token="t",
     )
     with pytest.raises(BadRequestError) as exc:
         svc.verify_email("t")
-    assert exc.value.error_code == "TOKEN_EXPIRED"
+    # Un token expiré et un token inconnu renvoient volontairement le même code :
+    # les distinguer dirait à un appelant anonyme que le token a existé.
+    assert exc.value.error_code == "INVALID_TOKEN"
 
 
 def test_verify_email_success_clears_token():
     svc = _service()
     user = SimpleNamespace(
-        token_expires_at=datetime.utcnow() + timedelta(hours=1),
+        verification_token_expires_at=datetime.utcnow() + timedelta(hours=1),
         is_email_verified=False, verification_token="t",
     )
     svc.users.get_by_verification_token.return_value = user
@@ -208,7 +210,7 @@ def test_resend_verification_success_returns_true_and_sends():
     svc = _service()
     svc.users.get_by_email.return_value = SimpleNamespace(
         is_email_verified=False, email="user@example.com", full_name="U",
-        verification_token=None, token_expires_at=None,
+        verification_token=None, verification_token_expires_at=None,
     )
     assert svc.resend_verification("user@example.com") is True
     svc.notifier.send_verification_email.assert_called_once()
@@ -226,7 +228,7 @@ def test_forgot_password_success_returns_true_and_sends():
     svc = _service()
     svc.users.get_by_email.return_value = SimpleNamespace(
         email="user@example.com", full_name="U",
-        reset_password_token=None, token_expires_at=None,
+        reset_password_token=None, reset_token_expires_at=None,
     )
     assert svc.forgot_password("user@example.com") is True
     svc.notifier.send_password_reset_email.assert_called_once()
@@ -235,7 +237,7 @@ def test_forgot_password_success_returns_true_and_sends():
 def test_reset_password_expired_token_raises():
     svc = _service()
     svc.users.get_by_reset_token.return_value = SimpleNamespace(
-        token_expires_at=datetime.utcnow() - timedelta(hours=1),
+        reset_token_expires_at=datetime.utcnow() - timedelta(hours=1),
     )
     with pytest.raises(BadRequestError) as exc:
         svc.reset_password("t", "newpass123")
@@ -245,7 +247,7 @@ def test_reset_password_expired_token_raises():
 def test_reset_password_success_updates_hash_and_confirms():
     svc = _service()
     user = SimpleNamespace(
-        token_expires_at=datetime.utcnow() + timedelta(hours=1),
+        reset_token_expires_at=datetime.utcnow() + timedelta(hours=1),
         password_hash=hash_password("oldpass"),
         reset_password_token="t", email="user@example.com", full_name="U",
     )
