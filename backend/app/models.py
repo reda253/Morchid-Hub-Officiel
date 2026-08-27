@@ -39,7 +39,13 @@ class User(Base):
     is_email_verified = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String(255), nullable=True, index=True)
     reset_password_token = Column(String(255), nullable=True, index=True)
-    token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Deux expirations distinctes : une seule colonne partagée faisait que
+    # demander un reset de mot de passe re-datait le lien de vérification.
+    verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Incrémenté pour révoquer toutes les sessions d'un utilisateur.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     
     # Métadonnées
     is_active = Column(Boolean, default=True, nullable=False)

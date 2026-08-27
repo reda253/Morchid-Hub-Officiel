@@ -326,3 +326,34 @@ SELECT gen_random_uuid()::text, g.id, 'pro', 399.0, 'MAD',
 FROM guides g
 WHERE g.is_premium = TRUE
   AND NOT EXISTS (SELECT 1 FROM subscriptions);
+
+-- #6 (0007) Colonnes de sécurité de la table users
+--
+-- Le CREATE TABLE users en tête de fichier n'a jamais été mis à jour avec les
+-- colonnes d'authentification ; elles sont donc toutes déclarées ici, en
+-- idempotent, pour que ce fichier reflète app/models.py.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255);
+CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_reset_password_token ON users(reset_password_token);
+
+-- Deux expirations distinctes : une seule colonne token_expires_at partagée
+-- faisait que demander un reset de mot de passe re-datait le lien de
+-- vérification d'email.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;
+
+-- Rend les JWT révocables : le claim `tv` est comparé à cette colonne, donc
+-- l'incrémenter invalide immédiatement toutes les sessions de l'utilisateur.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
+COMMENT ON COLUMN users.token_version IS 'Version de session — incrémentée pour révoquer tous les JWT de cet utilisateur';
+
+
+
+
+
+
+
