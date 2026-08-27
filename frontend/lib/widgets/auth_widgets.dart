@@ -7,6 +7,7 @@ import '../utils/app_colors.dart';
 export '../utils/app_colors.dart';
 
 import 'inline_error.dart';
+import 'ui_kit.dart' show AppLogo;
 
 // ============================================
 // 📝 CUSTOM TEXT FIELD
@@ -610,10 +611,15 @@ class AuthHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.eco,
-              size: 50,
-              color: AppColors.onPrimary,
+            // La marque elle-même, en réserve blanche sur le dégradé — pas
+            // une icône Material générique.
+            child: const Center(
+              child: AppLogo(
+                size: 54,
+                showWordmark: false,
+                color: AppColors.onPrimary,
+                monochrome: true,
+              ),
             ),
           ),
         ),

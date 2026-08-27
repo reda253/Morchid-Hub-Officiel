@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" width="420" height="100" role="img" aria-label="Morchid Hub">
+  <title>Morchid Hub — bloc-marque horizontal</title>
+  <!-- Symbole : voir morchid-mark.svg pour la construction. -->
+  <path fill="#004B87" fill-rule="nonzero" d="
+    M14.645,14.645 H85.355 V85.355 H14.645 Z
+    M50,0 L100,50 L50,100 L0,50 Z
+    M68.8,50 A18.8,18.8 0 1,0 31.2,50 A18.8,18.8 0 1,0 68.8,50 Z
+  "/>
+  <path fill="#00A86B" d="M50,32.5 L59.6,61.2 L50,53.2 L40.4,61.2 Z"/>
+
+  <!--
+    « Morchid » en gras porte le nom, « Hub » en Sahara Sand suit d'un cran :
+    on lit d'abord qui, ensuite quoi. Epilogue est la police d'affichage du
+    projet ; la pile de repli garde le bloc lisible partout.
+  -->
+  <text x="132" y="64"
+        font-family="Epilogue, 'Segoe UI', system-ui, sans-serif"
+        font-size="44" letter-spacing="-1">
+    <tspan fill="#1A1C1E" font-weight="700">Morchid</tspan><tspan fill="#E8C18C" font-weight="500"> Hub</tspan>
+  </text>
+</svg>

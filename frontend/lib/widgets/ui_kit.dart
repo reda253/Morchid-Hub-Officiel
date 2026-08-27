@@ -7,24 +7,87 @@ import '../utils/app_colors.dart';
 /// Importer via `import '../widgets/ui_kit.dart';`.
 
 // ── Logo Morchid Hub (étoile zellij 8 branches + wordmark) ──────────────────
+/// Logo Morchid Hub — la rose des vents khatim, et son bloc-marque.
+///
+/// « Morchid » (مرشد) veut dire *guide* en arabe : le nom énonce déjà le
+/// métier. La marque fusionne donc deux idées et pas une de plus —
+///
+///   • le **khatim**, l'étoile à huit branches du zellij marocain, obtenue en
+///     superposant deux carrés à 45°. Elle dit le lieu et l'artisanat sans
+///     tomber dans le chameau ou le minaret.
+///   • la **rose des vents**, ouverte au centre de l'étoile, aiguille au nord.
+///     Elle dit l'orientation, donc le guide officiel qui connaît le chemin.
+///
+/// L'aiguille est en Moroccan Mint : c'est le même vert que la promesse
+/// écoresponsable, si bien qu'une seule couleur porte les deux sens.
+///
+/// [size] est le côté du carré du symbole. En dessous de [_detailThreshold]
+/// l'ouverture et l'aiguille disparaissent et seule l'étoile pleine subsiste :
+/// à 16 px les détails se refermeraient en une tache. C'est une règle du
+/// système d'identité (icône vs marque complète), pas un contournement.
 class AppLogo extends StatelessWidget {
+  /// En dessous de cette taille, on bascule sur la version pleine.
+  static const double _detailThreshold = 22;
+
   final double size;
   final bool showWordmark;
+
+  /// Couleur de l'étoile. L'aiguille reste Mint sauf si [monochrome].
   final Color? color;
-  const AppLogo({Key? key, this.size = 26, this.showWordmark = true, this.color}) : super(key: key);
+
+  /// Une seule couleur pour tout le symbole — fonds photo, filigranes,
+  /// impression une couleur.
+  final bool monochrome;
+
+  const AppLogo({
+    Key? key,
+    this.size = 26,
+    this.showWordmark = true,
+    this.color,
+    this.monochrome = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.primary;
+    final star = color ?? AppColors.primary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CustomPaint(size: Size(size, size), painter: _ZellijStarPainter(c)),
+        CustomPaint(
+          size: Size(size, size),
+          painter: _KhatimRosePainter(
+            starColor: star,
+            needleColor: monochrome ? star : AppColors.mint,
+            detailed: size >= _detailThreshold && !monochrome,
+          ),
+        ),
         if (showWordmark) ...[
-          const SizedBox(width: 8),
-          Text(
-            'Morchid Hub',
-            style: AppTextStyles.headlineMd.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink),
+          SizedBox(width: size * 0.32),
+          // « Morchid » porte le poids, « Hub » suit en Sahara Sand : le nom
+          // se lit d'abord, la plateforme ensuite.
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Morchid',
+                  style: AppTextStyles.headlineMd.copyWith(
+                    fontSize: size * 0.70,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: color ?? AppColors.ink,
+                  ),
+                ),
+                TextSpan(
+                  text: ' Hub',
+                  style: AppTextStyles.headlineMd.copyWith(
+                    fontSize: size * 0.70,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.3,
+                    color: monochrome ? (color ?? AppColors.ink) : AppColors.sand,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ],
@@ -32,39 +95,76 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// Étoile à 8 branches (khatim) = deux carrés superposés à 45°.
-class _ZellijStarPainter extends CustomPainter {
-  final Color color;
-  _ZellijStarPainter(this.color);
+/// Peint la rose des vents khatim.
+///
+/// L'étoile est l'*union* booléenne de deux carrés et l'ouverture centrale une
+/// *différence* : le trou est donc réellement transparent. La version
+/// précédente peignait un carré blanc par-dessus, ce qui laissait une tache
+/// blanche dès que le fond n'était pas blanc.
+class _KhatimRosePainter extends CustomPainter {
+  final Color starColor;
+  final Color needleColor;
+  final bool detailed;
+
+  _KhatimRosePainter({
+    required this.starColor,
+    required this.needleColor,
+    required this.detailed,
+  });
+
+  // Géométrie en repère unitaire (0..1), mise à l'échelle au moment de peindre.
+  static const double _apertureR = 0.188;
+  static const double _halfSide = 0.35355; // 0.5 / √2 — même cercle circonscrit
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fill = Paint()..color = color..style = PaintingStyle.fill;
-    final cx = size.width / 2, cy = size.height / 2;
-    final side = size.width * 0.74;
-    final rect = Rect.fromCenter(center: Offset(cx, cy), width: side, height: side);
+    final s = size.width;
+    Offset p(double x, double y) => Offset(x * s, y * s);
 
-    // Carré 1 (axe aligné)
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(1.5)), fill);
-    // Carré 2 (pivoté 45°)
-    canvas.save();
-    canvas.translate(cx, cy);
-    canvas.rotate(0.785398); // 45°
-    canvas.translate(-cx, -cy);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(1.5)), fill);
-    canvas.restore();
+    // ── L'étoile : deux carrés de même cercle circonscrit, l'un pivoté de 45°
+    final square = Path()
+      ..addRect(Rect.fromLTRB(
+        (0.5 - _halfSide) * s,
+        (0.5 - _halfSide) * s,
+        (0.5 + _halfSide) * s,
+        (0.5 + _halfSide) * s,
+      ));
 
-    // Trou central (contraste) — petit carré surface
-    final hole = Paint()..color = AppColors.surface;
-    final hr = side * 0.30;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, cy), width: hr, height: hr), const Radius.circular(1)),
-      hole,
-    );
+    final diamond = Path()
+      ..moveTo(0.5 * s, 0)
+      ..lineTo(s, 0.5 * s)
+      ..lineTo(0.5 * s, s)
+      ..lineTo(0, 0.5 * s)
+      ..close();
+
+    Path mark = Path.combine(PathOperation.union, square, diamond);
+
+    if (detailed) {
+      final aperture = Path()
+        ..addOval(Rect.fromCircle(center: p(0.5, 0.5), radius: _apertureR * s));
+      mark = Path.combine(PathOperation.difference, mark, aperture);
+    }
+
+    canvas.drawPath(mark, Paint()..color = starColor..isAntiAlias = true);
+
+    if (!detailed) return;
+
+    // ── L'aiguille : flèche nord à base concave, contenue dans l'ouverture.
+    final needle = Path()
+      ..moveTo(0.5 * s, 0.325 * s)
+      ..lineTo(0.596 * s, 0.612 * s)
+      ..lineTo(0.5 * s, 0.532 * s)
+      ..lineTo(0.404 * s, 0.612 * s)
+      ..close();
+
+    canvas.drawPath(needle, Paint()..color = needleColor..isAntiAlias = true);
   }
 
   @override
-  bool shouldRepaint(covariant _ZellijStarPainter old) => old.color != color;
+  bool shouldRepaint(covariant _KhatimRosePainter old) =>
+      old.starColor != starColor ||
+      old.needleColor != needleColor ||
+      old.detailed != detailed;
 }
 
 /// En-tête d'app standard : logo à gauche, action à droite, fond blanc + filet.

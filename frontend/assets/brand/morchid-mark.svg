@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Morchid Hub">
+  <title>Morchid Hub — rose des vents khatim</title>
+  <!--
+    Étoile khatim = union de deux carrés de même cercle circonscrit, l'un
+    pivoté de 45°. L'ouverture centrale est un vrai trou (fill-rule nonzero,
+    cercle tracé en sens inverse), donc la marque se pose sur n'importe quel
+    fond sans halo blanc.
+  -->
+  <path fill="#004B87" fill-rule="nonzero" d="
+    M14.645,14.645 H85.355 V85.355 H14.645 Z
+    M50,0 L100,50 L50,100 L0,50 Z
+    M68.8,50 A18.8,18.8 0 1,0 31.2,50 A18.8,18.8 0 1,0 68.8,50 Z
+  "/>
+  <!-- Aiguille nord, à base concave : l'orientation, donc le guide. -->
+  <path fill="#00A86B" d="M50,32.5 L59.6,61.2 L50,53.2 L40.4,61.2 Z"/>
+</svg>
