@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_text_styles.dart';
 import '../utils/app_colors.dart';
+import 'motion.dart';
 
 /// Bibliothèque de composants partagés du design system Stitch.
 /// Importer via `import '../widgets/ui_kit.dart';`.
+///
+/// Tout ce qui est tappable ici passe par [Pressable] plutôt que `InkWell` :
+/// sur des cartes blanches à bordure claire, l'ondulation Material se voit à
+/// peine et arrive en retard, alors qu'un enfoncement répond dans la frame.
 
 // ── Logo Morchid Hub (étoile zellij 8 branches + wordmark) ──────────────────
 /// Logo Morchid Hub — la rose des vents khatim, et son bloc-marque.
@@ -226,8 +231,7 @@ class ExperienceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    return Pressable(
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -322,8 +326,7 @@ class ExpertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    return Pressable(
       onTap: onTap,
       child: Container(
         width: 200,
@@ -518,7 +521,7 @@ class AppCard extends StatelessWidget {
       child: child,
     );
     if (onTap == null) return card;
-    return InkWell(borderRadius: BorderRadius.circular(12), onTap: onTap, child: card);
+    return Pressable(onTap: onTap, child: card);
   }
 }
 
@@ -532,9 +535,14 @@ class AppFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // Le remplissage est animé, pas le texte : la bascule de couleur est le
+    // résultat visible du tap, la faire glisser sur 150 ms la rend lisible
+    // sans retarder la sélection elle-même.
+    return Pressable(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: AppMotion.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : AppColors.surface,
@@ -694,8 +702,7 @@ class DocumentUploader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = filled ? AppColors.mint : AppColors.outline;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    return Pressable(
       onTap: onTap,
       child: DottedBorderBox(
         color: borderColor,
@@ -991,9 +998,8 @@ class ActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,
-      child: InkWell(
+      child: Pressable(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1040,10 +1046,13 @@ class ActionRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
+              // Le chevron est une affordance, pas un accent : en bleu de
+              // marque sur chaque rangée il entre en concurrence avec l'icône
+              // de gauche, qui est le vrai repère de la ligne.
+              const Icon(
                 Icons.arrow_forward_ios,
-                size: 16,
-                color: enabled ? AppColors.primary : AppColors.textLight,
+                size: 15,
+                color: AppColors.textLight,
               ),
             ],
           ),
