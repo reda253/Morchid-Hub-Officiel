@@ -14,6 +14,11 @@ class AppRoutes {
   /// entre [login] et [shell] selon la session enregistrée.
   static const String splash = '/';
 
+  /// Présentation de première ouverture. `SplashScreen` y envoie tant que
+  /// `StorageService.hasSeenOnboarding()` est faux — donc avant même de
+  /// regarder s'il existe une session.
+  static const String onboarding = '/onboarding';
+
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';

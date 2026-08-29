@@ -10,6 +10,11 @@ class StorageService {
   static const String _keyUserData = 'user_data';
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyLastGuide = 'last_guide_data';
+
+  /// Présentation vue. Volontairement **absente** de [clearLoginData] :
+  /// l'introduction est une propriété de l'appareil, pas du compte. Se
+  /// déconnecter puis se reconnecter ne doit pas la rejouer.
+  static const String _keyOnboardingSeen = 'onboarding_seen';
   // ============================================
   // 💾 SAUVEGARDER LES DONNÉES DE CONNEXION
   // ============================================
@@ -84,6 +89,23 @@ class StorageService {
   /// Déconnexion complète
   static Future<void> logout() async {
     await clearLoginData();
+  }
+
+  // ============================================
+  // 👋 PRÉSENTATION (première ouverture)
+  // ============================================
+
+  /// Vrai dès que l'utilisateur a traversé — ou passé — la présentation.
+  static Future<bool> hasSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingSeen) ?? false;
+  }
+
+  /// Marque la présentation comme vue. Appelée aussi bien à la fin du parcours
+  /// qu'au « Passer » : dans les deux cas l'utilisateur a tranché.
+  static Future<void> markOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingSeen, true);
   }
   static Future<void> saveLastGuide(Map<String, dynamic> guideData) async {
     final prefs = await SharedPreferences.getInstance();

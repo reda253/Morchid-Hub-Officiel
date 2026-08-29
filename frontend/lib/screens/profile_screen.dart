@@ -53,22 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _openReviewScreen({
-    required String guideId,
-    required String guideName,
-    String? guidePhotoUrl,
-  }) async {
-    await Navigator.pushNamed<bool>(
-      context,
-      AppRoutes.review,
-      arguments: ReviewArgs(
-        guideId: guideId,
-        guideName: guideName,
-        guidePhotoUrl: guidePhotoUrl,
-      ),
-    );
-  }
-
   Widget _buildProfileAvatarWithFallback({
     required String fullName,
     String? photoUrl,
@@ -246,51 +230,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openReviewScreen(
-                      guideId: guide.id,
-                      guideName: user.fullName,
-                      guidePhotoUrl: guide.profilePhotoUrl,
-                    ),
-                    icon: const Icon(Icons.reviews_rounded, color: AppColors.primary),
-                    label: Text(
-                      guide.totalReviews > 0 ? 'Voir les ${guide.totalReviews} avis' : 'Aucun avis',
-                      style: AppTextStyles.bodyLg.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: AppColors.primary, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
               ],
-              if (user.role == 'tourist') ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.search),
-                    icon: const Icon(Icons.star_rounded),
-                    label: Text(
-                      'Laisser un avis sur un guide',
-                      style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.w600, color: AppColors.onPrimary),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
+              // Les deux boutons d'avis qui se trouvaient ici — « Voir les N
+              // avis » côté guide, « Laisser un avis sur un guide » côté
+              // touriste — ont été retirés. Le profil décrit *qui l'on est* ;
+              // ces boutons y greffaient une action appartenant à un autre
+              // parcours, et le second n'ouvrait même pas un avis mais la
+              // recherche. Les deux chemins existent déjà à leur place :
+              // le guide passe par « Voir mes avis » sur son tableau de bord,
+              // le touriste par la fiche d'un guide.
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

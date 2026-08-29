@@ -21,7 +21,17 @@ class _SplashScreenState extends State<SplashScreen> {
     _decide();
   }
 
+  /// La présentation passe avant la session : quelqu'un qui n'a jamais vu
+  /// l'application ne doit pas atterrir sur un formulaire de connexion sans
+  /// savoir à quoi il se connecte. Une fois vue, elle ne revient jamais — pas
+  /// même après une déconnexion, l'indicateur n'étant pas lié au compte.
   Future<void> _decide() async {
+    if (!await StorageService.hasSeenOnboarding()) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
+      return;
+    }
+
     final loggedIn = await StorageService.isLoggedIn();
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(
