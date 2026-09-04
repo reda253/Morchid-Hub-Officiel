@@ -2,6 +2,7 @@
 #
 #   cp .env.example .env   # puis renseigner SECRET_KEY
 #   docker compose up --build
+name: morchid
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -12,7 +13,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Loopback uniquement : la base ne doit pas être joignable depuis le
+      # réseau local. `127.0.0.1` explicite pour qu'on ne le "simplifie" pas
+      # en "5432:5432" plus tard.
+      - "127.0.0.1:5432:5432"
     healthcheck:
       # `api` attend cette sonde avant de démarrer (condition: service_healthy).
       # start_period couvre le premier boot de PostGIS, plus lent que Postgres

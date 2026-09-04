@@ -5,6 +5,7 @@
 #
 # Port 5433 : 5432 reste à la base de développement, les deux tournent
 # ensemble. Aucun volume nommé — ces données doivent disparaître.
+name: morchid-test
 services:
   db-test:
     image: postgis/postgis:16-3.4
@@ -13,7 +14,10 @@ services:
       POSTGRES_PASSWORD: morchid
       POSTGRES_DB: morchid
     ports:
-      - "5433:5432"
+      # Loopback uniquement : identifiants codés en dur (morchid/morchid) et
+      # ce fichier est versionné, donc publics. `127.0.0.1` explicite pour
+      # qu'on ne le "simplifie" pas en "5433:5432" plus tard.
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U morchid -d morchid"]
       interval: 5s
