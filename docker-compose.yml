@@ -1,0 +1,49 @@
+# Topologie locale : base PostGIS + API.
+#
+#   cp .env.example .env   # puis renseigner SECRET_KEY
+#   docker compose up --build
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # `api` attend cette sonde avant de démarrer (condition: service_healthy).
+      # start_period couvre le premier boot de PostGIS, plus lent que Postgres
+      # seul : l'image installe ses extensions au premier démarrage.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Hôte `db`, pas `localhost` : dans le réseau Compose, localhost désigne
+      # le conteneur api lui-même.
+      DATABASE_URL: postgresql+pg8000://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+      DEBUG: "False"
+    ports:
+      - "8000:8000"
+    volumes:
+      # Volume NOMMÉ, jamais un bind mount de ./backend/uploads : les scans
+      # d'identité des guides ne doivent pas être réimportés d'un poste de
+      # développement dans chaque environnement.
+      - uploads:/app/uploads
+
+volumes:
+  pgdata:
+  uploads:

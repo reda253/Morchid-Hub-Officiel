@@ -18,9 +18,16 @@ backend/*.pyc
 backend/.env
 backend/.pytest_cache/
 
+# --- Docker ---
+# `.env` de la racine : identifiants Postgres et SECRET_KEY de la topologie
+# Compose. `.env.example` est le modèle versionné.
+/.env
+
 # --- Système & IDE ---
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 *.log
+
+docs/
