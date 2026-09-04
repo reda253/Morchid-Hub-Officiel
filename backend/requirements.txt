@@ -8,9 +8,22 @@ python-multipart==0.0.6
 # ============================================
 # DATABASE
 # ============================================
+# Pilote pg8000 : pur Python, aucune dépendance système (pas de libpq, pas de
+# gcc dans l'image). C'est le pilote nommé dans DATABASE_URL
+# (postgresql+pg8000://). psycopg2-binary a été retiré : il n'était jamais
+# importé, et garder deux pilotes invite à rebasculer DATABASE_URL et à
+# redécouvrir le problème par l'autre bout.
 sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
+pg8000==1.31.5
 alembic==1.13.1
+
+# ============================================
+# GÉOSPATIAL (PostGIS)
+# ============================================
+# Versions épinglées : une dépendance libre dans une image signifie que deux
+# builds du même commit peuvent différer.
+geoalchemy2==0.14.3
+shapely==2.1.2
 
 # ============================================
 # AUTHENTICATION & SECURITY
@@ -18,6 +31,7 @@ alembic==1.13.1
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 bcrypt==3.2.2
+slowapi==0.1.9
 
 # ============================================
 # VALIDATION
@@ -30,15 +44,3 @@ email-validator==2.1.0
 # UTILITIES
 # ============================================
 python-dotenv==1.0.0
-
-# ============================================
-# TESTS (Plan 03)
-# ============================================
-pytest==7.4.4
-httpx==0.26.0
-pytest-asyncio==0.23.5
-pytest-cov==4.1.0
-
-geoalchemy2
-shapely
-slowapi==0.1.9

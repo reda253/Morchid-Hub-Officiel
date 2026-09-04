@@ -1,0 +1,12 @@
+# Dépendances de développement et de test.
+#
+# Installe d'abord le runtime, puis la pile pytest. L'image de production
+# n'installe QUE requirements.txt : pytest et httpx n'ont rien à y faire.
+#
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+
+pytest==7.4.4
+httpx==0.26.0
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
