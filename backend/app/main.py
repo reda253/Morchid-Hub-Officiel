@@ -90,11 +90,14 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def startup_event():
-        # Bootstrap dev : crée les tables manquantes depuis les modèles.
-        # En déploiement (Plan 04/05), la migration canonique est
-        # `alembic upgrade head` — voir backend/alembic/. create_all reste ici
-        # comme filet pour le développement local (idempotent).
-        Base.metadata.create_all(bind=engine)
+        # Bootstrap DEV UNIQUEMENT : crée les tables manquantes depuis les
+        # modèles. En conteneur et en déploiement, la migration canonique est
+        # `alembic upgrade head` (voir backend/docker-entrypoint.sh) et elle est
+        # la SEULE autorité de schéma : laisser create_all actif ferait créer
+        # en silence les tables d'un modèle ayant dérivé des migrations, sans
+        # ligne correspondante dans `alembic_version`.
+        if settings.DEBUG:
+            Base.metadata.create_all(bind=engine)
 
     return app
 
