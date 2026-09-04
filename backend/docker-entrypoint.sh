@@ -22,16 +22,25 @@ attempts = int(os.environ.get("DB_WAIT_ATTEMPTS", "30"))
 delay = float(os.environ.get("DB_WAIT_DELAY", "2"))
 
 for attempt in range(1, attempts + 1):
+    engine = create_engine(url)
     try:
-        engine = create_engine(url)
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-        engine.dispose()
         print(f"[entrypoint] base joignable (tentative {attempt})")
         sys.exit(0)
-    except Exception as exc:  # le détail va dans les logs, jamais dans une réponse
-        print(f"[entrypoint] tentative {attempt}/{attempts} échouée : {exc}")
+    except Exception as exc:
+        # Ne jamais logger le texte de l'exception : les erreurs SQLAlchemy/pg8000
+        # embarquent l'hôte, le port, la base et l'utilisateur, et une ArgumentError
+        # sur une URL malformée peut inclure DATABASE_URL avec le mot de passe en
+        # clair. La sortie standard du conteneur atteint `docker logs`, les logs
+        # GitHub Actions et tout agrégateur — plus exposée que le logger applicatif.
+        # Seul le type de l'exception est loggé ; le détail n'a sa place nulle part ici.
+        print(f"[entrypoint] tentative {attempt}/{attempts} échouée : {type(exc).__name__}")
         time.sleep(delay)
+    finally:
+        # Dispose sur les deux chemins : une connexion échouée ne doit pas laisser
+        # un engine ouvert pour le reste de la fenêtre de tentatives.
+        engine.dispose()
 
 print("[entrypoint] base injoignable, abandon", file=sys.stderr)
 sys.exit(1)
