@@ -1,0 +1,29 @@
+# Environnements virtuels — jamais dans une image.
+venv/
+fastapi_venv/
+
+# Artefacts Python
+__pycache__/
+*.pyc
+*.pyo
+
+# SECRETS ET DONNÉES PERSONNELLES — ne doivent jamais entrer dans une couche
+# d'image : une couche n'est pas un fichier qu'on supprime après coup, et cette
+# image part dans un registre.
+#   .env      -> SECRET_KEY et identifiants de base réels
+#   uploads/  -> licences professionnelles et cartes d'identité (CINE) des guides
+.env
+.env.example
+uploads/
+
+# Tests et rapports (l'image de prod n'installe pas pytest)
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Journaux et outillage local
+*.log
+.vscode/
+.idea/

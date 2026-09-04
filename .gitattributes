@@ -1,0 +1,5 @@
+# Les scripts shell doivent garder des fins de ligne LF, y compris sur Windows.
+# Un docker-entrypoint.sh en CRLF fait échouer le conteneur au démarrage avec
+# "no such file or directory" : le shebang devient `/bin/sh\r`, un chemin qui
+# n'existe pas.
+*.sh text eol=lf
