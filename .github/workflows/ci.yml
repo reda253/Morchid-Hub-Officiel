@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  backend-tests:
+    name: Backend (pytest + PostGIS)
+    runs-on: ubuntu-latest
+
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: morchid
+          POSTGRES_PASSWORD: morchid
+          POSTGRES_DB: morchid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U morchid"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # `app.config.Settings` exige DATABASE_URL et SECRET_KEY à l'import :
+      # sans elles, la collecte pytest échoue avant le premier test.
+      DATABASE_URL: postgresql+pg8000://morchid:morchid@localhost:5432/morchid
+      TEST_DATABASE_URL: postgresql+pg8000://morchid:morchid@localhost:5432/morchid_test
+      SECRET_KEY: ci-secret-key-not-used-outside-continuous-integration
+      ADMIN_EMAILS: admin.ci@morchid.local
+      CORS_ORIGINS: http://localhost:3000
+      DEBUG: "False"
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # 3.11 comme l'image (backend/Dockerfile). La version qui garde les
+          # merges est la version qui part en production.
+          python-version: "3.11"
+          cache: pip
+          # Les deux fichiers : requirements-dev.txt inclut requirements.txt via
+          # `-r`, donc une clé de cache calculée sur le seul fichier dev
+          # resterait valide après une modification du runtime.
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run the test suite
+        run: pytest --cov=app --cov-report=term-missing --junitxml=report.xml -q
+
+      - name: Assert the integration layer actually ran
+        # Les tests d'intégration se skippent tout seuls quand aucune base
+        # n'est joignable (tests/conftest.py::test_engine). Une CI mal câblée
+        # rendrait donc une suite verte et presque vide. Mesuré : base éteinte,
+        # pytest sort « 102 passed, 85 skipped » — le TOTAL reste 187, donc
+        # seul le contrôle des skips attrape le cas ; le minimum ne suffit pas.
+        run: |
+          python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          MINIMUM = 187
+
+          root = ET.parse("report.xml").getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          if suite is None:
+              sys.exit("ÉCHEC : rapport JUnit illisible — aucun élément <testsuite>.")
+
+          total = int(suite.get("tests", 0))
+          skipped = int(suite.get("skipped", 0))
+          print(f"tests={total} skipped={skipped}")
+
+          if skipped:
+              sys.exit(f"ÉCHEC : {skipped} test(s) skippés — la base PostGIS n'a pas été jointe.")
+          if total < MINIMUM:
+              sys.exit(f"ÉCHEC : {total} tests collectés, minimum attendu {MINIMUM}.")
+          PY
+
+      - name: Verify the migration chain on a clean database
+        # Les fixtures de test construisent leur schéma avec create_all, donc la
+        # suite ne teste JAMAIS les migrations. C'est ainsi qu'un 0001_baseline
+        # lisant les modèles vivants a pu casser `alembic upgrade head` sans
+        # qu'aucun test ne rougisse. Cette étape ferme le trou.
+        env:
+          ALEMBIC_DATABASE_URL: postgresql+pg8000://morchid:morchid@localhost:5432/migrationcheck
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine, text
+
+          admin = create_engine(
+              "postgresql+pg8000://morchid:morchid@localhost:5432/morchid",
+              isolation_level="AUTOCOMMIT",
+          )
+          with admin.connect() as connection:
+              connection.execute(text("DROP DATABASE IF EXISTS migrationcheck"))
+              connection.execute(text("CREATE DATABASE migrationcheck"))
+          admin.dispose()
+
+          target = create_engine(
+              "postgresql+pg8000://morchid:morchid@localhost:5432/migrationcheck",
+              isolation_level="AUTOCOMMIT",
+          )
+          with target.connect() as connection:
+              connection.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+          target.dispose()
+          PY
+          alembic upgrade head
+          # `alembic current` écrit ses INFO sur stderr et la révision sur
+          # stdout : le pipe ne voit donc que la révision.
+          alembic current | grep -q "0007_token_columns" \
+            || { echo "ÉCHEC : la chaîne de migration n'atteint pas head"; exit 1; }
+
+  frontend-tests:
+    name: Frontend (flutter analyze + test)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        # Le socle est de 126 issues, 0 de sévérité error. Un `flutter analyze`
+        # nu sort en échec dès la première info et casserait la CI au jour 1 ;
+        # ces deux drapeaux ne font échouer que sur des erreurs, ce qui est
+        # exactement l'invariant tenu jusqu'ici (voir CLAUDE.md).
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: morchid-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
