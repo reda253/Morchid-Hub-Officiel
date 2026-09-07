@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last verified against the code: 2026-08-27.** Facts below carry file:line references. If a
+**Last verified against the code: 2026-09-08.** Facts below carry file:line references. If a
 reference does not resolve, the file moved — re-check before trusting the claim.
 
 ## Project Overview
@@ -31,7 +31,8 @@ Three domain concepts recur across nearly every endpoint and screen:
 
 ```bash
 source venv/Scripts/activate        # or fastapi_venv/Scripts/activate
-pip install -r requirements.txt
+pip install -r requirements.txt     # runtime only — what the image installs
+pip install -r requirements-dev.txt # runtime + pytest/httpx/pytest-cov
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
@@ -39,7 +40,7 @@ alembic upgrade head                # apply migrations (the real schema path)
 alembic current                     # show the current revision
 alembic downgrade -1                # step back one
 
-pytest                              # full suite — 183 tests
+pytest                              # full suite — 187 tests
 pytest -m unit                      # services with mocked repos, no DB needed
 pytest -m integration               # repositories + API, needs PostGIS
 pytest tests/integration/test_api_auth.py -v      # single file
@@ -48,6 +49,45 @@ pytest tests/integration/test_api_auth.py -v      # single file
 There are **no one-off scripts at the root of `backend/`** — `create_db.py`, `drop_tables.py`,
 `approve_all_guides.py` and the old ad-hoc `test_*.py` / `simulate_*.py` files are gone. Use
 Alembic for schema and the pytest suite for verification.
+
+### Docker (from the repo root)
+
+```bash
+cp .env.example .env                # then fill SECRET_KEY (≥ 32 chars, no placeholder)
+docker compose up --build           # PostGIS on 127.0.0.1:5432 + API on :8000
+
+docker compose -f docker-compose.test.yml up -d   # throwaway PostGIS on 127.0.0.1:5433
+```
+
+Two Compose files, each with its own project `name` (`morchid`, `morchid-test`) so the stacks can
+run side by side without orphan-container warnings. Both publish Postgres on `127.0.0.1` only —
+never widen that to `5432:5432`.
+
+- `backend/Dockerfile` — two stages (`builder` builds a venv from `requirements.txt`, `runtime`
+  copies it). Runs as non-root `appuser`; every runtime dependency ships a manylinux wheel, so the
+  image needs no compiler and no `libpq-dev`. That is why `pg8000` is the pinned driver.
+- `backend/docker-entrypoint.sh` — wait for the database, `alembic upgrade head`, then
+  `exec uvicorn`. `exec` makes uvicorn PID 1 so `docker stop` reaches it. The wait loop logs only
+  the exception *type*: SQLAlchemy/pg8000 errors carry the host, port, database, user, and a
+  malformed `DATABASE_URL` can surface the password in cleartext.
+- `.env.example` is the committed template for the Compose-level variables; `.env` stays
+  gitignored.
+- Uploads live in a **named volume**, never a bind mount of `./backend/uploads` — the guides'
+  identity scans must not travel from a dev machine into another environment.
+
+### CI/CD (`.github/workflows/`)
+
+- **`ci.yml`** runs on pull requests and pushes. Three blocking jobs: `backend-tests` (pytest
+  against a `postgis/postgis:16-3.4` service container, then `alembic upgrade head` on a clean
+  database), `frontend-tests` (`flutter analyze --no-fatal-infos --no-fatal-warnings`, then
+  `flutter test`), and `docker-build`.
+- The backend job asserts **`tests ≥ 187` and `skipped == 0`** from the JUnit report. Integration
+  tests self-skip when no database is reachable, so a misconfigured service container would
+  otherwise report a green, nearly empty suite. The migration-chain step exists because the test
+  fixtures build their schema with `create_all` and therefore never exercise Alembic.
+- **`cd.yml`** runs on pushes to `main`: build and push `ghcr.io/<owner>/morchid-hub-api`, tagged
+  with the long commit SHA and `latest`. Auth is the workflow-scoped `GITHUB_TOKEN` with
+  `packages: write` — no personal access token. There is no deploy step; Plan 05 owns the host.
 
 ### Frontend (from `frontend/`)
 
@@ -78,7 +118,7 @@ repositories/ data access — SQLAlchemy queries, nothing else
 
 | Path | Role |
 |---|---|
-| `main.py` | `create_app()`: CORS, static mount, nine routers, exception handlers, `create_all` dev bootstrap (`:61`) |
+| `main.py` | `create_app()`: CORS, static mount, nine routers, exception handlers, and a `create_all` bootstrap that is **gated on `settings.DEBUG`** (`:99`). Outside DEBUG, `alembic upgrade head` is the only schema authority |
 | `api/` | Nine routers: `auth`, `guides`, `routes`, `premium`, `reviews`, `admin`, `search`, `time_slots`, `health` |
 | `api/deps.py` | Service providers + `require_admin` (`:62`) |
 | `services/` | Ten services, one per domain |
@@ -101,12 +141,19 @@ Router prefixes: `/api/v1/admin/*`, `/api/v1/search/*`, `/api/v1/*` for everythi
 **Hashing is `pbkdf2_sha256`, not bcrypt** (`auth.py:18`), despite `passlib[bcrypt]` being
 installed. Do not change the algorithm without a migration plan for existing hashes.
 
-`DATABASE_URL` uses the **`postgresql+pg8000://`** driver, not `psycopg2`, though both are
-installed.
+`DATABASE_URL` uses the **`postgresql+pg8000://`** driver. `psycopg2-binary` has been **removed**
+from `requirements.txt` — it was never imported, and keeping two drivers invites someone to flip
+`DATABASE_URL` back and rediscover the problem from the other end. `pg8000` is pure Python, which
+is what lets the image build with no compiler and no `libpq-dev`.
+
+Dependencies are split: `requirements.txt` is the runtime (what the Docker image installs) and
+`requirements-dev.txt` pulls it in via `-r` and adds `pytest`, `httpx`, `pytest-asyncio`,
+`pytest-cov`. Every version is pinned — an unpinned dependency means two builds of the same commit
+can differ.
 
 ### Backend tests (`backend/tests/`)
 
-183 tests. `conftest.py` provides:
+187 tests. `conftest.py` provides:
 
 - `db_session` — a real PostGIS test database, isolated per test by a savepoint-based transaction
   rollback. Service `commit()` calls become savepoints; nothing leaks between tests.
@@ -119,7 +166,8 @@ installed.
   `make_support_message`, `make_subscription`, `auth_headers`.
 
 **Integration tests self-skip when no test database is reachable.** A skipped integration suite is
-not a passing one — check that the DB is up before trusting a green run.
+not a passing one — check that the DB is up before trusting a green run. CI enforces this: the
+`backend-tests` job fails on any skip (see CI/CD above).
 
 ### Frontend (`frontend/lib/`)
 
@@ -230,9 +278,9 @@ was already written).
 
 ## Planning documents
 
-- `docs/plans/00-overview.md` — the five-plan roadmap. Plans 01 (layering) and 03 (tests) are
-  complete; 02 (frontend redesign) is complete through Phase 3; 04 (Docker/CI) and 05 (AWS) are
-  not started.
+- `docs/plans/00-overview.md` — the five-plan roadmap. Plans 01 (layering), 03 (tests) and 04
+  (Docker/CI) are complete; 02 (frontend redesign) is complete through Phase 3; 05 (AWS) is not
+  started.
 - `docs/superpowers/specs/` and `docs/superpowers/plans/` — per-project designs and task plans.
 
 ## Environment
