@@ -1,0 +1,50 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    name: Build and push the API image to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Suffit à pousser un package appartenant au même dépôt : aucun jeton
+      # personnel (GHCR_TOKEN) n'est nécessaire, et un identifiant durable de
+      # moins est un identifiant de moins à fuiter ou à faire tourner.
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive the tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/morchid-hub-api
+          # Le tag SHA est celui que le Plan 05 épinglera ; `latest` est un
+          # confort et ne doit jamais être ce qu'un déploiement référence.
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
