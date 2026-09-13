@@ -10,7 +10,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 # Rendre le package `app` importable (backend/ sur le path).
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -19,6 +19,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.config import settings  # noqa: E402
 from app.database import Base  # noqa: E402
+from app.db_url import build_engine_config  # noqa: E402
 import app.models  # noqa: E402,F401  (enregistre tous les modèles sur Base)
 
 config = context.config
@@ -46,10 +47,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    # create_engine direct plutôt qu'engine_from_config : les connect_args
+    # (contexte TLS) ne peuvent pas transiter par la section .ini d'Alembic.
+    engine_url, connect_args = build_engine_config(_db_url)
+    connectable = create_engine(
+        engine_url,
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
     with connectable.connect() as connection:
         context.configure(

@@ -17,12 +17,14 @@ import time
 
 from sqlalchemy import create_engine, text
 
-url = os.environ["DATABASE_URL"]
+from app.db_url import build_engine_config
+
+url, connect_args = build_engine_config(os.environ["DATABASE_URL"])
 attempts = int(os.environ.get("DB_WAIT_ATTEMPTS", "30"))
 delay = float(os.environ.get("DB_WAIT_DELAY", "2"))
 
 for attempt in range(1, attempts + 1):
-    engine = create_engine(url)
+    engine = create_engine(url, connect_args=connect_args)
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -54,4 +56,7 @@ echo "[entrypoint] démarrage d'uvicorn..."
 # et reçoit directement le SIGTERM de `docker stop`. Sans lui, le shell garde
 # PID 1, ignore le signal, et chaque arrêt attend le timeout de 10 s avant un
 # SIGKILL qui coupe les requêtes en cours.
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Render (et la plupart des PaaS) impose le port via $PORT ; 8000 reste le
+# défaut pour docker compose. FORWARDED_ALLOW_IPS, lu nativement par uvicorn,
+# se règle dans l'environnement de la plateforme, pas ici.
+exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
