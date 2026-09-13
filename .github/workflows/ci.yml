@@ -71,7 +71,7 @@ jobs:
           import sys
           import xml.etree.ElementTree as ET
 
-          MINIMUM = 187
+          MINIMUM = 198
 
           root = ET.parse("report.xml").getroot()
           suite = root if root.tag == "testsuite" else root.find("testsuite")

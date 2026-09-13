@@ -7,15 +7,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from .config import settings
+from .db_url import build_engine_config
 
 # ============================================
 # CONFIGURATION DU MOTEUR DE BASE DE DONNÉES
 # ============================================
 
+# L'URL passe par build_engine_config : une URL managée (Neon) porte
+# `?sslmode=require`, que pg8000 refuse tel quel.
+_engine_url, _connect_args = build_engine_config(settings.DATABASE_URL)
+
 # Créer l'engine PostgreSQL
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,  # Vérifie la connexion avant chaque requête
+    _engine_url,
+    connect_args=_connect_args,
+    pool_pre_ping=True,  # Vérifie la connexion avant chaque requête (Neon suspend les connexions inactives)
     echo=False,  # Log les requêtes SQL en mode debug
 )
 

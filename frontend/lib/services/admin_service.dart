@@ -2,19 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/admin_models.dart';
 import 'storage_service.dart';
-import 'dart:io' as io;
+import 'api_config.dart';
 
 class AdminService {
   // ============================================
   // CONFIGURATION
   // ============================================
   
-  static String get baseUrl {
-    if (io.Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://127.0.0.1:8000';
-  }
+  // Adresse de l'API : voir ApiConfig (--dart-define=API_BASE_URL au build).
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Endpoints
   static const String adminUsersEndpoint = '/api/v1/admin/users';

@@ -1,0 +1,42 @@
+# Blueprint Render — déploiement de démonstration (offre gratuite).
+#
+# Render construit backend/Dockerfile depuis le dépôt à chaque push sur main
+# (une fois la CI verte) et lance docker-entrypoint.sh : attente de la base,
+# `alembic upgrade head`, puis uvicorn sur $PORT.
+#
+# AUCUN secret ici. DATABASE_URL (Neon) et ADMIN_EMAILS se saisissent dans le
+# tableau de bord Render (sync: false) ; SECRET_KEY est générée par Render.
+# DATABASE_URL doit garder `?sslmode=require` : Neon accepte aussi les
+# connexions sans TLS, et le mot de passe circulerait alors en clair.
+#
+# Limites de l'offre gratuite, acceptées pour une démo :
+#   - mise en veille après ~15 min sans trafic, réveil ~1 min ;
+#   - système de fichiers éphémère : uploads/ est vidé à chaque redémarrage.
+#     Ne jamais y téléverser un vrai scan de CINE ou de licence.
+services:
+  - type: web
+    name: morchid-hub-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    # Ne redéploie qu'une fois les checks GitHub (ci.yml) au vert.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://morchid-hub-api.onrender.com
+      - key: DEBUG
+        value: "False"
+      # Derrière le proxy Render : sans cela, toutes les requêtes semblent
+      # venir du proxy et la limite de débit par IP devient commune à tous.
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"

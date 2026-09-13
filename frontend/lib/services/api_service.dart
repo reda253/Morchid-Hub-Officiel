@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/user_models.dart';
 import '../models/search_models.dart'; // ✅ NOUVEAU : modèles de recherche
 import 'storage_service.dart';
+import 'api_config.dart';
 
 
 
@@ -15,18 +16,8 @@ class ApiService {
   // 🌐 CONFIGURATION
   // ============================================
 
-  // IMPORTANT: Remplacez par l'URL de votre serveur
-  // Pour l'émulateur Android: http://10.0.2.2:8000
-  // Pour l'émulateur iOS: http://localhost:8000
-  // Pour un appareil physique: http://YOUR_COMPUTER_IP:8000
-  // static const String baseUrl = 'http://127.0.0.1:8000';
-  
-  static String get baseUrl {
-    if (io.Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://127.0.0.1:8000';
-  }
+  // Adresse de l'API : voir ApiConfig (--dart-define=API_BASE_URL au build).
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Endpoints
   static const String registerEndpoint = '/api/v1/register';
