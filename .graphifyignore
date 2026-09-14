@@ -1,0 +1,32 @@
+# Périmètre du graphe de connaissances (graphify) : le code uniquement.
+#
+# Un corpus code-only se reconstruit sans LLM ni clé d'API (`graphify update .`),
+# ce qui rend le graphe versionné reproductible par n'importe qui.
+
+# Documentation et fichiers non-code : ils exigeraient une extraction par LLM
+docs/
+*.md
+*.docx
+*.txt
+*.yaml
+*.yml
+*.svg
+
+# Configuration locale de l'outillage
+.claude/
+
+# Sorties et artefacts
+graphify-out/
+backend/uploads/
+backend/fastapi_venv/
+frontend/build/
+frontend/.dart_tool/
+
+# Code généré par Flutter pour chaque plateforme : il n'apporte rien à la
+# compréhension du projet et noierait le graphe
+frontend/android/
+frontend/ios/
+frontend/linux/
+frontend/macos/
+frontend/windows/
+frontend/web/

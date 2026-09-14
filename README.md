@@ -93,11 +93,64 @@ L'API expose 43 points d'entrée répartis dans neuf routeurs.
 │   │   ├── widgets/        # composants partagés (ui_kit.dart)
 │   │   └── theme/          # couleurs et typographie
 │   └── test/
+├── graphify-out/           # graphe de connaissances du code (voir plus bas)
 ├── .github/workflows/      # ci.yml (vérification), cd.yml (publication de l'image)
 ├── docker-compose.yml      # PostGIS + API en local
 ├── docker-compose.test.yml # base PostGIS jetable pour les tests
 └── render.yaml             # déploiement de démonstration sur Render
 ```
+
+## Explorer le code en graphe
+
+Pour comprendre le projet sans lire les 160 fichiers un par un, le dépôt contient un graphe de
+connaissances généré avec [graphify](https://github.com/safishamsi/graphify). Chaque classe,
+fonction, écran et test y est un nœud, relié à ce qu'il appelle, importe ou utilise. Les nœuds sont
+regroupés en 120 communautés nommées (« Routeur auth », « Écran carte (Flutter) », « Dépôt des
+guides », « Tests limite gratuite circuits »…).
+
+| Fichier | Contenu |
+|---|---|
+| [`graphify-out/graph.html`](graphify-out/graph.html) | Graphe interactif : zoom, recherche d'un nœud, filtre par communauté |
+| [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) | Rapport lisible sur GitHub : nœuds centraux, communautés, liens inattendus |
+| [`graphify-out/graph.json`](graphify-out/graph.json) | Données brutes du graphe (2 293 nœuds, 4 118 arêtes) |
+
+### Voir le graphe
+
+GitHub n'affiche pas les pages HTML. Clonez le dépôt, puis ouvrez le fichier dans un navigateur :
+aucun serveur ni installation n'est nécessaire.
+
+```bash
+git clone https://github.com/reda253/Morchid-Hub-Officiel.git
+cd Morchid-Hub-Officiel
+start graphify-out/graph.html      # Windows
+open graphify-out/graph.html       # macOS
+xdg-open graphify-out/graph.html   # Linux
+```
+
+Pour un premier aperçu sans rien télécharger, lisez
+[`GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) : la section *God Nodes* liste les abstractions
+dont tout le reste dépend (`User`, `Guide`, `GuideRepository`, les erreurs métier).
+
+### Interroger ou reconstruire le graphe
+
+graphify s'installe avec `pip` (ou `uv`) et ne demande aucune clé d'API pour du code :
+
+```bash
+pip install graphifyy               # ou : uv tool install graphifyy
+
+# Questions sur le code, depuis la racine du dépôt
+graphify query "comment un guide devient-il visible dans la recherche ?"
+graphify path "SearchService" "GuideRepository"
+graphify explain "require_admin"
+graphify god-nodes
+
+# Après une modification du code : mise à jour du graphe, sans LLM
+graphify update .
+```
+
+Le périmètre est fixé par [`.graphifyignore`](.graphifyignore) : uniquement le code du backend et
+du client (Python, Dart, script de démarrage). La documentation, les fichiers générés par Flutter
+pour chaque plateforme et les dépôts de fichiers en sont exclus.
 
 ## Démarrage rapide
 

@@ -1,0 +1,5 @@
+# Fichiers propres à la machine qui a construit le graphe
+.graphify_python
+.graphify_root
+cache/
+cost.json
