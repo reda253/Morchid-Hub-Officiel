@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last verified against the code: 2026-09-08.** Facts below carry file:line references. If a
+**Last verified against the code: 2026-09-14.** Facts below carry file:line references. If a
 reference does not resolve, the file moved — re-check before trusting the claim.
 
 ## Project Overview
@@ -40,7 +40,7 @@ alembic upgrade head                # apply migrations (the real schema path)
 alembic current                     # show the current revision
 alembic downgrade -1                # step back one
 
-pytest                              # full suite — 187 tests
+pytest                              # full suite — 198 tests
 pytest -m unit                      # services with mocked repos, no DB needed
 pytest -m integration               # repositories + API, needs PostGIS
 pytest tests/integration/test_api_auth.py -v      # single file
@@ -81,27 +81,34 @@ never widen that to `5432:5432`.
   against a `postgis/postgis:16-3.4` service container, then `alembic upgrade head` on a clean
   database), `frontend-tests` (`flutter analyze --no-fatal-infos --no-fatal-warnings`, then
   `flutter test`), and `docker-build`.
-- The backend job asserts **`tests ≥ 187` and `skipped == 0`** from the JUnit report. Integration
+- The backend job asserts **`tests ≥ 198` and `skipped == 0`** from the JUnit report. Integration
   tests self-skip when no database is reachable, so a misconfigured service container would
   otherwise report a green, nearly empty suite. The migration-chain step exists because the test
   fixtures build their schema with `create_all` and therefore never exercise Alembic.
 - **`cd.yml`** runs on pushes to `main`: build and push `ghcr.io/<owner>/morchid-hub-api`, tagged
   with the long commit SHA and `latest`. Auth is the workflow-scoped `GITHUB_TOKEN` with
-  `packages: write` — no personal access token. There is no deploy step; Plan 05 owns the host.
+  `packages: write` — no personal access token.
+- **Deployment is Render + Neon, not a `cd.yml` step.** Render watches `main` through
+  `render.yaml` and rebuilds `backend/Dockerfile` once CI is green; `cd.yml` still publishes the
+  GHCR image, which nothing currently consumes. See "Deployment" below.
 
 ### Frontend (from `frontend/`)
 
 ```bash
 flutter pub get
 flutter run
-flutter analyze                     # baseline: 130 issues, 0 error-severity
-flutter test                        # 61 tests across 14 files under test/
+flutter analyze                     # baseline: 126 issues, 0 error-severity
+flutter test                        # 88 tests across 19 files under test/
 flutter test test/widgets/ui_kit_avatar_test.dart   # single file
+
+# demo build against the deployed API
+flutter build apk --release --dart-define=API_BASE_URL=https://morchid-hub-api.onrender.com
 ```
 
-`baseUrl` is hardcoded and switches by platform (`services/api_service.dart:24-28`):
-`http://10.0.2.2:8000` on the Android emulator, `http://127.0.0.1:8000` elsewhere. There is no
-`.env` on the Flutter side — edit `baseUrl` to target another host.
+`baseUrl` comes from `ApiConfig` (`services/api_config.dart`): `--dart-define=API_BASE_URL=…` at
+build time, otherwise `http://10.0.2.2:8000` on Android and `http://127.0.0.1:8000` elsewhere.
+`ApiService.baseUrl` and `AdminService.baseUrl` both delegate to it — never hardcode a host again.
+There is no `.env` on the Flutter side.
 
 ## Architecture
 
@@ -131,6 +138,7 @@ repositories/ data access — SQLAlchemy queries, nothing else
 | `config.py` | `pydantic-settings` over `.env` |
 | `alembic/versions/` | `0001`–`0007` |
 | `rate_limit.py` | `limiter`, the 429 handler, and the single place slowapi is imported |
+| `db_url.py` | `build_engine_config()`: turns libpq-style `?sslmode=` URLs into pg8000 `connect_args` (verified TLS). `app/database.py`, `alembic/env.py` and `docker-entrypoint.sh` must all use it — guarded by `tests/unit/test_engine_wiring.py` |
 
 **Endpoint count: 43.** The two added by the security work are
 `GET /api/v1/guides/{id}/contact` (any logged-in user) and
@@ -153,7 +161,7 @@ can differ.
 
 ### Backend tests (`backend/tests/`)
 
-187 tests. `conftest.py` provides:
+198 tests. `conftest.py` provides:
 
 - `db_session` — a real PostGIS test database, isolated per test by a savepoint-based transaction
   rollback. Service `commit()` calls become savepoints; nothing leaks between tests.
@@ -276,11 +284,33 @@ Two latent crashes were found and fixed along the way: `is_token_expired` compar
 `save_upload_file` called `relative_to(Path("."))` on an absolute path (`ValueError` after the file
 was already written).
 
+## Deployment — Render + Neon (free tier, demo only)
+
+Live at **https://morchid-hub-api.onrender.com** since 2026-09-14. Plan:
+`docs/superpowers/plans/2026-09-13-render-neon-deployment.md`.
+
+- **API:** Render free web service `morchid-hub-api`, Docker runtime, Frankfurt, defined in
+  `render.yaml`. Secrets (`DATABASE_URL`, `SECRET_KEY`, `ADMIN_EMAILS`) live in the Render
+  dashboard only — never in a tracked file.
+- **DB:** Neon Postgres 16 + PostGIS 3.3, Frankfurt, **direct** host (not `-pooler`). URL scheme
+  `postgresql+pg8000://…?sslmode=require`. **Keep `sslmode=require`:** Neon also accepts
+  plaintext connections, so dropping it silently sends the password unencrypted.
+  (`pg_stat_ssl` reports `ssl = false` on Neon; that is the proxy→compute hop, not the client.)
+- **Port and client IPs:** uvicorn listens on `${PORT:-8000}` (`docker-entrypoint.sh`).
+  `FORWARDED_ALLOW_IPS=*` lets the rate limiter see real client IPs behind Render's proxy —
+  which also lets a client spoof `X-Forwarded-For` to dodge the limit (verified). Acceptable for a
+  demo, not for production.
+- **Free-tier behaviour:** spins down after ~15 min idle (~1 min cold start — hit `/health`
+  before a demo). **Uploads are ephemeral:** wiped on restart, redeploy and spin-down. Never
+  upload a real identity document there.
+- Email is still simulated: verification tokens are printed to the Render logs.
+- The AWS EC2 plan is shelved, not deleted — see `docs/plans/05-render-neon-deployment.md`.
+
 ## Planning documents
 
-- `docs/plans/00-overview.md` — the five-plan roadmap. Plans 01 (layering), 03 (tests) and 04
-  (Docker/CI) are complete; 02 (frontend redesign) is complete through Phase 3; 05 (AWS) is not
-  started.
+- `docs/plans/00-overview.md` — the five-plan roadmap. Plans 01 (layering), 03 (tests), 04
+  (Docker/CI) and 05 (deployment, on Render + Neon instead of AWS) are complete; 02 (frontend
+  redesign) is complete through Phase 3.
 - `docs/superpowers/specs/` and `docs/superpowers/plans/` — per-project designs and task plans.
 
 ## Environment
